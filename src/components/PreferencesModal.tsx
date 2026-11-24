@@ -2,7 +2,11 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useLocale } from "@/components/LocaleProvider";
-import { formatLocaleNumber } from "@/lib/i18n";
+import { formatEnergy } from "@/lib/i18n";
+import {
+  getMacroGoalMismatch,
+  scaleMacrosToCalorieGoal,
+} from "@/lib/macro-sync";
 import type {
   EnergyUnit,
   MacroUnit,
@@ -25,7 +29,7 @@ export function PreferencesModal({
   onClose,
   onSave,
 }: PreferencesModalProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const titleId = useId();
   const dialogRef = useRef<HTMLDialogElement | null>(null);
 
@@ -102,12 +106,10 @@ export function PreferencesModal({
     const kcal = Number(caloriesInput);
     if (!Number.isFinite(kcal) || kcal < 500 || kcal > 10000) return;
     // Balanced 30% Protein / 40% Carbs / 30% Fat split, clamped to valid macro bounds
-    const protein = Math.min(800, Math.max(10, Math.round((kcal * 0.3) / 4)));
-    const carbs = Math.min(1500, Math.max(0, Math.round((kcal * 0.4) / 4)));
-    const fat = Math.min(400, Math.max(10, Math.round((kcal * 0.3) / 9)));
-    setProteinInput(String(protein));
-    setCarbsInput(String(carbs));
-    setFatInput(String(fat));
+    const split = scaleMacrosToCalorieGoal(kcal);
+    setProteinInput(String(split.proteinGoal));
+    setCarbsInput(String(split.carbsGoal));
+    setFatInput(String(split.fatGoal));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -162,10 +164,21 @@ export function PreferencesModal({
     }
   }
 
-  const draftMacroKcal = Math.round(
-    (Number(proteinInput) || 0) * 4 +
-      (Number(carbsInput) || 0) * 4 +
-      (Number(fatInput) || 0) * 9
+  const draftCalorieGoal = Number(caloriesInput) || 0;
+  const draftMismatch = getMacroGoalMismatch(draftCalorieGoal, {
+    proteinGoal: Number(proteinInput) || 0,
+    carbsGoal: Number(carbsInput) || 0,
+    fatGoal: Number(fatInput) || 0,
+  });
+  const formattedMacroEnergy = formatEnergy(
+    draftMismatch.macroKcal,
+    locale,
+    energyUnit
+  );
+  const formattedDiffEnergy = formatEnergy(
+    draftMismatch.absDiff,
+    locale,
+    energyUnit
   );
 
   return (
@@ -329,9 +342,26 @@ export function PreferencesModal({
             </div>
           </div>
 
-          <p className="mt-1.5 text-xs text-ink-muted tabular-nums">
-            {t.preferences.macroCalorieSum(formatLocaleNumber(draftMacroKcal))}
-          </p>
+          {draftMismatch.isMismatched ? (
+            <p
+              role="status"
+              className="mt-2 rounded-lg border border-status-yellow/35 bg-status-yellow/10 px-2.5 py-1.5 text-xs font-medium text-status-yellow tabular-nums"
+            >
+              {draftMismatch.diffKcal < 0
+                ? t.preferences.macroMismatchBelow(
+                    formattedMacroEnergy,
+                    formattedDiffEnergy
+                  )
+                : t.preferences.macroMismatchAbove(
+                    formattedMacroEnergy,
+                    formattedDiffEnergy
+                  )}
+            </p>
+          ) : (
+            <p className="mt-1.5 text-xs text-ink-muted tabular-nums">
+              {t.preferences.macroCalorieSum(formattedMacroEnergy)}
+            </p>
+          )}
         </div>
 
         {/* Display Units */}

@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "@/components/LocaleProvider";
 import {
+  formatEnergy,
   formatEnergyValue,
   formatMacroAmount,
   getEnergyUnitLabel,
 } from "@/lib/i18n";
+import { getMacroGoalMismatch } from "@/lib/macro-sync";
 import type { DailyTotals, UserSettings } from "@/types/food";
 
 interface CalorieSummaryProps {
@@ -15,6 +17,7 @@ interface CalorieSummaryProps {
   settings: UserSettings;
   isSavingGoal: boolean;
   onUpdateGoal: (nextGoal: number) => Promise<boolean>;
+  onSyncMacros: () => Promise<boolean>;
   onOpenPreferences: () => void;
 }
 
@@ -24,6 +27,7 @@ export function CalorieSummary({
   settings,
   isSavingGoal,
   onUpdateGoal,
+  onSyncMacros,
   onOpenPreferences,
 }: CalorieSummaryProps) {
   const { locale, t } = useLocale();
@@ -93,6 +97,12 @@ export function CalorieSummary({
     carbsGoal > 0 ? Math.min(100, Math.round((totals.carbs / carbsGoal) * 100)) : 0;
   const fatGoalPct =
     fatGoal > 0 ? Math.min(100, Math.round((totals.fat / fatGoal) * 100)) : 0;
+
+  const macroMismatch = getMacroGoalMismatch(dailyGoal, {
+    proteinGoal,
+    carbsGoal,
+    fatGoal,
+  });
 
   async function handleSaveGoal(e: React.FormEvent) {
     e.preventDefault();
@@ -344,6 +354,28 @@ export function CalorieSummary({
               </div>
             ))}
           </div>
+
+          {macroMismatch.isMismatched ? (
+            <div
+              role="status"
+              className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-status-yellow/35 bg-status-yellow/10 px-3 py-2 text-xs"
+            >
+              <span className="font-medium text-status-yellow tabular-nums">
+                {t.summary.macroSyncNotice(
+                  formatEnergy(macroMismatch.macroKcal, locale, energyUnit),
+                  formatEnergy(dailyGoal, locale, energyUnit)
+                )}
+              </span>
+              <button
+                type="button"
+                disabled={isSavingGoal}
+                onClick={() => void onSyncMacros()}
+                className="shrink-0 rounded-lg border border-status-yellow/40 bg-surface px-2.5 py-1 text-[11px] font-semibold text-status-yellow transition-colors hover:bg-elevated disabled:opacity-50"
+              >
+                {t.summary.syncMacros}
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

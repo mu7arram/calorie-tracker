@@ -7,9 +7,9 @@
   - Updated `GET /api/settings` to return the full `UserSettings` object and `PATCH /api/settings` to validate and apply partial updates while remaining backward-compatible with `{ dailyCalorieGoal }`.
 - **Native Preferences Modal (`src/components/PreferencesModal.tsx`, `src/app/globals.css`):**
   - Built a responsive modal dialog using the native `<dialog>` element opened via `showModal()` with `closedby="any"` (plus a feature-detected pointerdown/pointerup light-dismiss fallback for Safari), `aria-labelledby` → `<h1>`, `autofocus`, and pure-CSS background scroll containment (`dialog:modal` + `dialog::backdrop` `overscroll-behavior: contain` with `overflow: hidden` on `::backdrop`).
-  - Added a live macro-calorie preview (`P×4 + C×4 + F×9`) and a one-click **Auto-split 30/40/30** helper.
-- **Unit-Aware & Goal-Aware UI (`CalorieSummary.tsx`, `DailyFoodLog.tsx`, `FoodSearchCatalog.tsx`, `AiNutritionReview.tsx`, `page.tsx`):**
-  - Upgraded the Protein, Carbs, and Fat cards in `CalorieSummary` to display consumed vs. daily target (`amount / goal`), individual progress bars, and calorie-share percentages.
+  - Added a live macro-calorie preview (`P×4 + C×4 + F×9`), a non-blocking amber mismatch indicator when macro targets diverge from the calorie goal by `> 5%` (min 50 kcal), and a one-click **Auto-split 30/40/30** helper.
+- **Unit-Aware & Goal-Aware UI (`CalorieSummary.tsx`, `DailyFoodLog.tsx`, `FoodSearchCatalog.tsx`, `AiNutritionReview.tsx`, `page.tsx`, `macro-sync.ts`):**
+  - Upgraded the Protein, Carbs, and Fat cards in `CalorieSummary` to display consumed vs. daily target (`amount / goal`), individual progress bars, calorie-share percentages, and an inline amber out-of-sync banner with one-click proportional **Sync macros** (preserving the user's P/C/F ratio).
   - Added `formatEnergy`, `formatEnergyValue`, `getEnergyUnitLabel`, and `formatMacroAmount` in `src/lib/i18n.ts` with full English, Spanish, and RTL Arabic translations.
   - Added a header **Preferences** button next to `LanguageToggle` and `ThemeToggle`, plus a direct Preferences link in `CalorieSummary`.
 

@@ -159,7 +159,9 @@ export interface LocalizedStrings {
     dailyCalorieGoal: string;
     macroTargets: string;
     autoSplit: string;
-    macroCalorieSum: (kcal: string) => string;
+    macroCalorieSum: (energy: string) => string;
+    macroMismatchBelow: (macroEnergy: string, diffEnergy: string) => string;
+    macroMismatchAbove: (macroEnergy: string, diffEnergy: string) => string;
     displayUnits: string;
     energyUnitLabel: string;
     macroUnitLabel: string;
@@ -195,6 +197,8 @@ export interface LocalizedStrings {
     shareOfCalories: string;
     noMacrosLogged: string;
     macroDistributionLabel: string;
+    macroSyncNotice: (macroEnergy: string, goalEnergy: string) => string;
+    syncMacros: string;
   };
   addPanel: {
     sectionLabel: string;
@@ -286,6 +290,7 @@ export interface LocalizedStrings {
     removedEntry: string;
     goalUpdated: (goal: string, unit?: string) => string;
     preferencesUpdated: string;
+    macrosSynced: string;
   };
   errors: {
     loadFailed: string;
@@ -342,7 +347,11 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       dailyCalorieGoal: "Daily calorie goal (kcal)",
       macroTargets: "Daily macro targets (grams)",
       autoSplit: "Auto-split 30/40/30",
-      macroCalorieSum: (kcal) => `Macro targets equal ~${kcal} kcal`,
+      macroCalorieSum: (energy) => `Macro targets equal ~${energy}`,
+      macroMismatchBelow: (macroEnergy, diffEnergy) =>
+        `Macros total ~${macroEnergy} (${diffEnergy} below your calorie goal)`,
+      macroMismatchAbove: (macroEnergy, diffEnergy) =>
+        `Macros total ~${macroEnergy} (${diffEnergy} above your calorie goal)`,
       displayUnits: "Display units",
       energyUnitLabel: "Energy",
       macroUnitLabel: "Macros",
@@ -379,6 +388,9 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       shareOfCalories: "Share of calories",
       noMacrosLogged: "No macros logged",
       macroDistributionLabel: "Macronutrient calorie distribution",
+      macroSyncNotice: (macroEnergy, goalEnergy) =>
+        `Macro targets total ~${macroEnergy} vs. your ${goalEnergy} goal.`,
+      syncMacros: "Sync macros",
     },
     addPanel: {
       sectionLabel: "Add food",
@@ -481,6 +493,7 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       removedEntry: "Removed entry",
       goalUpdated: (goal, unit = "kcal") => `Daily goal updated to ${goal} ${unit}`,
       preferencesUpdated: "Preferences saved",
+      macrosSynced: "Macro targets synced to your calorie goal",
     },
     errors: {
       loadFailed: "Could not load your nutrition data. Refresh to retry.",
@@ -536,7 +549,11 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       dailyCalorieGoal: "Meta calórica diaria (kcal)",
       macroTargets: "Metas diarias de macros (gramos)",
       autoSplit: "Reparto 30/40/30",
-      macroCalorieSum: (kcal) => `Las metas de macros equivalen a ~${kcal} kcal`,
+      macroCalorieSum: (energy) => `Las metas de macros equivalen a ~${energy}`,
+      macroMismatchBelow: (macroEnergy, diffEnergy) =>
+        `Los macros suman ~${macroEnergy} (${diffEnergy} por debajo de tu meta)`,
+      macroMismatchAbove: (macroEnergy, diffEnergy) =>
+        `Los macros suman ~${macroEnergy} (${diffEnergy} por encima de tu meta)`,
       displayUnits: "Unidades de visualización",
       energyUnitLabel: "Energía",
       macroUnitLabel: "Macros",
@@ -574,6 +591,9 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       shareOfCalories: "Porcentaje de calorías",
       noMacrosLogged: "Sin macros registrados",
       macroDistributionLabel: "Distribución calórica por macronutriente",
+      macroSyncNotice: (macroEnergy, goalEnergy) =>
+        `Tus macros suman ~${macroEnergy} frente a tu meta de ${goalEnergy}.`,
+      syncMacros: "Sincronizar macros",
     },
     addPanel: {
       sectionLabel: "Agregar alimento",
@@ -677,6 +697,7 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       goalUpdated: (goal, unit = "kcal") =>
         `Meta diaria actualizada a ${goal} ${unit}`,
       preferencesUpdated: "Preferencias guardadas",
+      macrosSynced: "Metas de macros sincronizadas con tu meta calórica",
     },
     errors: {
       loadFailed: "No se pudieron cargar tus datos. Recarga para reintentar.",
@@ -732,7 +753,11 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       dailyCalorieGoal: "هدف السعرات اليومي (سعرة)",
       macroTargets: "أهداف العناصر اليومية (غرام)",
       autoSplit: "توزيع تلقائي 30/40/30",
-      macroCalorieSum: (kcal) => `مجموع أهداف العناصر ≈ ${kcal} سعرة`,
+      macroCalorieSum: (energy) => `مجموع أهداف العناصر ≈ ${energy}`,
+      macroMismatchBelow: (macroEnergy, diffEnergy) =>
+        `مجموع العناصر ≈ ${macroEnergy} (أقل من هدفك بـ ${diffEnergy})`,
+      macroMismatchAbove: (macroEnergy, diffEnergy) =>
+        `مجموع العناصر ≈ ${macroEnergy} (أعلى من هدفك بـ ${diffEnergy})`,
       displayUnits: "وحدات العرض",
       energyUnitLabel: "الطاقة",
       macroUnitLabel: "العناصر",
@@ -769,6 +794,9 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       shareOfCalories: "نسبة السعرات",
       noMacrosLogged: "لا توجد بيانات مسجلة",
       macroDistributionLabel: "توزيع السعرات بين العناصر الغذائية",
+      macroSyncNotice: (macroEnergy, goalEnergy) =>
+        `مجموع أهداف العناصر ≈ ${macroEnergy} مقابل هدف ${goalEnergy}.`,
+      syncMacros: "مزامنة العناصر",
     },
     addPanel: {
       sectionLabel: "إضافة طعام",
@@ -871,6 +899,7 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       goalUpdated: (goal, unit = "سعرة") =>
         `تم تحديث الهدف اليومي إلى ${goal} ${unit}`,
       preferencesUpdated: "تم حفظ التفضيلات",
+      macrosSynced: "تمت مزامنة أهداف العناصر مع هدف السعرات",
     },
     errors: {
       loadFailed: "تعذر تحميل بيانات التغذية. أعد تحميل الصفحة للمحاولة.",

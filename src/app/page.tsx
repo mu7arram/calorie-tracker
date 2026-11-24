@@ -13,6 +13,7 @@ import {
   formatHeaderDate,
   getEnergyUnitLabel,
 } from "@/lib/i18n";
+import { scaleMacrosToCalorieGoal } from "@/lib/macro-sync";
 import type {
   CustomFoodLogItem,
   DailyLogResponse,
@@ -233,7 +234,7 @@ export default function HomePage() {
 
   async function handleUpdateSettings(
     patch: UserSettingsPatch,
-    toastKind: "goal" | "preferences" = "preferences"
+    toastKind: "goal" | "preferences" | "sync" = "preferences"
   ): Promise<boolean> {
     setIsSavingSettings(true);
     setErrorMessage(null);
@@ -264,6 +265,8 @@ export default function HomePage() {
             getEnergyUnitLabel(locale, nextSettings.energyUnit)
           )
         );
+      } else if (toastKind === "sync") {
+        showStatus(t.toasts.macrosSynced);
       } else {
         showStatus(t.toasts.preferencesUpdated);
       }
@@ -284,6 +287,15 @@ export default function HomePage() {
 
   async function handleUpdateGoal(nextGoal: number): Promise<boolean> {
     return handleUpdateSettings({ dailyCalorieGoal: nextGoal }, "goal");
+  }
+
+  async function handleSyncMacros(): Promise<boolean> {
+    const scaled = scaleMacrosToCalorieGoal(settings.dailyCalorieGoal, {
+      proteinGoal: settings.proteinGoal,
+      carbsGoal: settings.carbsGoal,
+      fatGoal: settings.fatGoal,
+    });
+    return handleUpdateSettings(scaled, "sync");
   }
 
   const formattedDate = formatHeaderDate(todayDate, locale);
@@ -417,6 +429,7 @@ export default function HomePage() {
             settings={settings}
             isSavingGoal={isSavingSettings}
             onUpdateGoal={handleUpdateGoal}
+            onSyncMacros={handleSyncMacros}
             onOpenPreferences={() => setIsPreferencesOpen(true)}
           />
 
