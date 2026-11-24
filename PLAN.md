@@ -21,8 +21,8 @@
 - **Database Safety & Testing:** Added automatic `meal_category` schema migration for existing databases, strict server-side input validation, and unit test coverage across SQLite operations and Gemini normalization.
 
 ## Future Roadmap
-1. ~~**Deploy to Vercel:**~~ *(Completed in `feat/vercel-turso-migration`)* Migrated local `node:sqlite` to async `@libsql/client` (Turso) for serverless Vercel deployments.
-2. **User Preferences:** Add customizable daily Protein / Carbs / Fat targets, metric/imperial serving units, and configurable meal slots.
+1. ~~**Deploy to Vercel:**~~ *(Completed)* Migrated local `node:sqlite` to async `@libsql/client` (Turso) for serverless Vercel deployments.
+2. ~~**User Preferences:**~~ *(Completed in `feat/user-preferences`)* Added customizable daily Protein / Carbs / Fat targets, `kcal`/`kJ` and `g`/`oz` unit preferences, and a native `<dialog>` Preferences modal.
 3. **Food History Charts:** Add multi-day date navigation along with 7-day and 30-day calorie and macronutrient trend visualizations.
 4. **Barcode Scanning:** Integrate camera-based UPC/EAN barcode scanning (backed by Open Food Facts or Gemini lookup) for packaged foods.
 

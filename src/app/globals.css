@@ -550,3 +550,15 @@ html.lang-transitioning.lang-same-dir::view-transition-new(root) {
     animation: none !important;
   }
 }
+
+/* Native modal dialog scroll containment & backdrop */
+dialog.app-dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog.app-dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background-color: rgba(8, 10, 14, 0.58);
+  backdrop-filter: blur(4px);
+}

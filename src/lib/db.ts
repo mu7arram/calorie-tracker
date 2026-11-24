@@ -3,17 +3,43 @@ import path from "node:path";
 import { createClient, type Client, type InStatement, type Row } from "@libsql/client";
 import { SEED_FOODS } from "@/lib/seed-foods";
 import {
+  ENERGY_UNITS,
+  MACRO_UNITS,
   MEAL_CATEGORIES,
   type CustomFoodLogItem,
   type DailyLogResponse,
+  type EnergyUnit,
   type FoodItem,
   type FoodLogEntry,
+  type MacroUnit,
   type MealCategory,
+  type UserSettings,
+  type UserSettingsPatch,
 } from "@/types/food";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 export const DEFAULT_DAILY_CALORIE_GOAL = 2000;
+export const DEFAULT_PROTEIN_GOAL = 150;
+export const DEFAULT_CARBS_GOAL = 200;
+export const DEFAULT_FAT_GOAL = 65;
+export const DEFAULT_ENERGY_UNIT: EnergyUnit = "kcal";
+export const DEFAULT_MACRO_UNIT: MacroUnit = "g";
+
+export const DEFAULT_USER_SETTINGS: UserSettings = {
+  dailyCalorieGoal: DEFAULT_DAILY_CALORIE_GOAL,
+  proteinGoal: DEFAULT_PROTEIN_GOAL,
+  carbsGoal: DEFAULT_CARBS_GOAL,
+  fatGoal: DEFAULT_FAT_GOAL,
+  energyUnit: DEFAULT_ENERGY_UNIT,
+  macroUnit: DEFAULT_MACRO_UNIT,
+};
+
 const DAILY_CALORIE_GOAL_KEY = "daily_calorie_goal";
+const PROTEIN_GOAL_KEY = "protein_goal_g";
+const CARBS_GOAL_KEY = "carbs_goal_g";
+const FAT_GOAL_KEY = "fat_goal_g";
+const ENERGY_UNIT_KEY = "energy_unit";
+const MACRO_UNIT_KEY = "macro_unit";
 
 declare global {
   var __calorieTrackerDb: Client | undefined;
@@ -41,6 +67,20 @@ export function isValidMealCategory(value: unknown): value is MealCategory {
   return (
     typeof value === "string" &&
     (MEAL_CATEGORIES as readonly string[]).includes(value)
+  );
+}
+
+export function isValidEnergyUnit(value: unknown): value is EnergyUnit {
+  return (
+    typeof value === "string" &&
+    (ENERGY_UNITS as readonly string[]).includes(value)
+  );
+}
+
+export function isValidMacroUnit(value: unknown): value is MacroUnit {
+  return (
+    typeof value === "string" &&
+    (MACRO_UNITS as readonly string[]).includes(value)
   );
 }
 
@@ -143,10 +183,35 @@ export async function initSchemaAndSeed(db: Client): Promise<void> {
     );
   }
 
-  await db.execute({
-    sql: "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
-    args: [DAILY_CALORIE_GOAL_KEY, String(DEFAULT_DAILY_CALORIE_GOAL)],
-  });
+  await db.batch(
+    [
+      {
+        sql: "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+        args: [DAILY_CALORIE_GOAL_KEY, String(DEFAULT_DAILY_CALORIE_GOAL)],
+      },
+      {
+        sql: "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+        args: [PROTEIN_GOAL_KEY, String(DEFAULT_PROTEIN_GOAL)],
+      },
+      {
+        sql: "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+        args: [CARBS_GOAL_KEY, String(DEFAULT_CARBS_GOAL)],
+      },
+      {
+        sql: "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+        args: [FAT_GOAL_KEY, String(DEFAULT_FAT_GOAL)],
+      },
+      {
+        sql: "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+        args: [ENERGY_UNIT_KEY, DEFAULT_ENERGY_UNIT],
+      },
+      {
+        sql: "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+        args: [MACRO_UNIT_KEY, DEFAULT_MACRO_UNIT],
+      },
+    ],
+    "write"
+  );
 
   const countResult = await db.execute("SELECT COUNT(*) AS count FROM foods");
   const count = Number(countResult.rows[0]?.count ?? 0);
@@ -219,36 +284,132 @@ export async function listFoods(db?: Client): Promise<FoodItem[]> {
   return result.rows.map(mapFoodRow);
 }
 
-export async function getDailyCalorieGoal(db?: Client): Promise<number> {
-  const client = db ?? (await getDb());
-  const result = await client.execute({
-    sql: "SELECT value FROM settings WHERE key = ?",
-    args: [DAILY_CALORIE_GOAL_KEY],
-  });
+function parseBoundedInt(
+  raw: string | undefined,
+  min: number,
+  max: number,
+  fallback: number
+): number {
+  if (raw === undefined) return fallback;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed >= min && parsed <= max
+    ? parsed
+    : fallback;
+}
 
-  const row = result.rows[0];
-  if (!row) {
-    return DEFAULT_DAILY_CALORIE_GOAL;
+export async function getUserSettings(db?: Client): Promise<UserSettings> {
+  const client = db ?? (await getDb());
+  const result = await client.execute(
+    "SELECT key, value FROM settings"
+  );
+
+  const map = new Map<string, string>();
+  for (const row of result.rows) {
+    map.set(String(row.key), String(row.value));
   }
 
-  const parsed = Number(row.value);
-  return Number.isInteger(parsed) && parsed >= 500 && parsed <= 10000
-    ? parsed
-    : DEFAULT_DAILY_CALORIE_GOAL;
+  const rawEnergyUnit = map.get(ENERGY_UNIT_KEY);
+  const rawMacroUnit = map.get(MACRO_UNIT_KEY);
+
+  return {
+    dailyCalorieGoal: parseBoundedInt(
+      map.get(DAILY_CALORIE_GOAL_KEY),
+      500,
+      10000,
+      DEFAULT_DAILY_CALORIE_GOAL
+    ),
+    proteinGoal: parseBoundedInt(
+      map.get(PROTEIN_GOAL_KEY),
+      10,
+      500,
+      DEFAULT_PROTEIN_GOAL
+    ),
+    carbsGoal: parseBoundedInt(
+      map.get(CARBS_GOAL_KEY),
+      0,
+      1000,
+      DEFAULT_CARBS_GOAL
+    ),
+    fatGoal: parseBoundedInt(
+      map.get(FAT_GOAL_KEY),
+      10,
+      300,
+      DEFAULT_FAT_GOAL
+    ),
+    energyUnit: isValidEnergyUnit(rawEnergyUnit)
+      ? rawEnergyUnit
+      : DEFAULT_ENERGY_UNIT,
+    macroUnit: isValidMacroUnit(rawMacroUnit)
+      ? rawMacroUnit
+      : DEFAULT_MACRO_UNIT,
+  };
+}
+
+export async function updateUserSettings(
+  patch: UserSettingsPatch,
+  db?: Client
+): Promise<UserSettings> {
+  const client = db ?? (await getDb());
+  const statements: InStatement[] = [];
+
+  const upsertSql = `INSERT INTO settings (key, value) VALUES (?, ?)
+                     ON CONFLICT(key) DO UPDATE SET value = excluded.value`;
+
+  if (patch.dailyCalorieGoal !== undefined) {
+    statements.push({
+      sql: upsertSql,
+      args: [DAILY_CALORIE_GOAL_KEY, String(patch.dailyCalorieGoal)],
+    });
+  }
+  if (patch.proteinGoal !== undefined) {
+    statements.push({
+      sql: upsertSql,
+      args: [PROTEIN_GOAL_KEY, String(patch.proteinGoal)],
+    });
+  }
+  if (patch.carbsGoal !== undefined) {
+    statements.push({
+      sql: upsertSql,
+      args: [CARBS_GOAL_KEY, String(patch.carbsGoal)],
+    });
+  }
+  if (patch.fatGoal !== undefined) {
+    statements.push({
+      sql: upsertSql,
+      args: [FAT_GOAL_KEY, String(patch.fatGoal)],
+    });
+  }
+  if (patch.energyUnit !== undefined) {
+    statements.push({
+      sql: upsertSql,
+      args: [ENERGY_UNIT_KEY, patch.energyUnit],
+    });
+  }
+  if (patch.macroUnit !== undefined) {
+    statements.push({
+      sql: upsertSql,
+      args: [MACRO_UNIT_KEY, patch.macroUnit],
+    });
+  }
+
+  if (statements.length > 0) {
+    await client.batch(statements, "write");
+  }
+
+  return getUserSettings(client);
+}
+
+export async function getDailyCalorieGoal(db?: Client): Promise<number> {
+  const settings = await getUserSettings(db);
+  return settings.dailyCalorieGoal;
 }
 
 export async function setDailyCalorieGoal(
   goal: number,
   db?: Client
 ): Promise<number> {
-  const client = db ?? (await getDb());
-  await client.execute({
-    sql: `INSERT INTO settings (key, value) VALUES (?, ?)
-          ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    args: [DAILY_CALORIE_GOAL_KEY, String(goal)],
-  });
-
-  return goal;
+  const updated = await updateUserSettings({ dailyCalorieGoal: goal }, db);
+  return updated.dailyCalorieGoal;
 }
 
 export async function getDailyLog(

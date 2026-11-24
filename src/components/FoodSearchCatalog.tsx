@@ -3,18 +3,25 @@
 import { useId, useState } from "react";
 import { useLocale } from "@/components/LocaleProvider";
 import {
-  formatGrams,
-  formatLocaleNumber,
+  formatEnergy,
+  formatMacroAmount,
   localizeFoodItem,
   matchesFoodSearch,
 } from "@/lib/i18n";
-import type { FoodItem, MealCategory } from "@/types/food";
+import type {
+  EnergyUnit,
+  FoodItem,
+  MacroUnit,
+  MealCategory,
+} from "@/types/food";
 
 interface FoodSearchCatalogProps {
   foods: FoodItem[];
   isLoading: boolean;
   addingFoodId: number | null;
   selectedMeal?: MealCategory;
+  energyUnit?: EnergyUnit;
+  macroUnit?: MacroUnit;
   onAddFood: (foodId: number, servings: number) => Promise<void>;
   embedded?: boolean;
 }
@@ -26,6 +33,8 @@ export function FoodSearchCatalog({
   isLoading,
   addingFoodId,
   selectedMeal,
+  energyUnit = "kcal",
+  macroUnit = "g",
   onAddFood,
   embedded = false,
 }: FoodSearchCatalogProps) {
@@ -102,7 +111,7 @@ export function FoodSearchCatalog({
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-ink-secondary">
                     <span>{localized.servingSize}</span>
                     <span className="font-semibold text-ink tabular-nums">
-                      {formatLocaleNumber(food.calories)} {t.units.kcal}
+                      {formatEnergy(food.calories, locale, energyUnit)}
                     </span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-2.5 text-[11px] text-ink-secondary tabular-nums">
@@ -110,19 +119,19 @@ export function FoodSearchCatalog({
                       <span className="font-medium text-macro-protein">
                         {t.macros.proteinShort}
                       </span>{" "}
-                      {formatGrams(food.protein, locale)}
+                      {formatMacroAmount(food.protein, locale, macroUnit)}
                     </span>
                     <span>
                       <span className="font-medium text-macro-carbs">
                         {t.macros.carbsShort}
                       </span>{" "}
-                      {formatGrams(food.carbs, locale)}
+                      {formatMacroAmount(food.carbs, locale, macroUnit)}
                     </span>
                     <span>
                       <span className="font-medium text-macro-fat">
                         {t.macros.fatShort}
                       </span>{" "}
-                      {formatGrams(food.fat, locale)}
+                      {formatMacroAmount(food.fat, locale, macroUnit)}
                     </span>
                   </div>
                 </div>

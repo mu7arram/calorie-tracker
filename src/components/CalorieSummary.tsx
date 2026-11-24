@@ -2,25 +2,40 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "@/components/LocaleProvider";
-import { formatGrams, formatLocaleNumber } from "@/lib/i18n";
-import type { DailyTotals } from "@/types/food";
+import {
+  formatEnergyValue,
+  formatMacroAmount,
+  getEnergyUnitLabel,
+} from "@/lib/i18n";
+import type { DailyTotals, UserSettings } from "@/types/food";
 
 interface CalorieSummaryProps {
   totals: DailyTotals;
   entryCount: number;
-  dailyGoal: number;
+  settings: UserSettings;
   isSavingGoal: boolean;
   onUpdateGoal: (nextGoal: number) => Promise<boolean>;
+  onOpenPreferences: () => void;
 }
 
 export function CalorieSummary({
   totals,
   entryCount,
-  dailyGoal,
+  settings,
   isSavingGoal,
   onUpdateGoal,
+  onOpenPreferences,
 }: CalorieSummaryProps) {
   const { locale, t } = useLocale();
+  const {
+    dailyCalorieGoal: dailyGoal,
+    proteinGoal,
+    carbsGoal,
+    fatGoal,
+    energyUnit,
+    macroUnit,
+  } = settings;
+
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState(String(dailyGoal));
   const [goalError, setGoalError] = useState<string | null>(null);
@@ -45,12 +60,19 @@ export function CalorieSummary({
     statusTextClass = "text-status-yellow";
   }
 
+  const unitLabel = getEnergyUnitLabel(locale, energyUnit);
   const diff = Math.round((dailyGoal - totals.calories) * 10) / 10;
-  let remainingLabel = t.summary.remaining(formatLocaleNumber(diff));
+  let remainingLabel = t.summary.remaining(
+    formatEnergyValue(diff, energyUnit),
+    unitLabel
+  );
   if (diff === 0) {
     remainingLabel = t.summary.goalReached;
   } else if (diff < 0) {
-    remainingLabel = t.summary.overGoal(formatLocaleNumber(Math.abs(diff)));
+    remainingLabel = t.summary.overGoal(
+      formatEnergyValue(Math.abs(diff), energyUnit),
+      unitLabel
+    );
   }
 
   const proteinKcal = totals.protein * 4;
@@ -64,6 +86,13 @@ export function CalorieSummary({
     totalMacroKcal > 0 ? Math.round((carbsKcal / totalMacroKcal) * 100) : 0;
   const fatPct =
     totalMacroKcal > 0 ? Math.max(0, 100 - proteinPct - carbsPct) : 0;
+
+  const proteinGoalPct =
+    proteinGoal > 0 ? Math.min(100, Math.round((totals.protein / proteinGoal) * 100)) : 0;
+  const carbsGoalPct =
+    carbsGoal > 0 ? Math.min(100, Math.round((totals.carbs / carbsGoal) * 100)) : 0;
+  const fatGoalPct =
+    fatGoal > 0 ? Math.min(100, Math.round((totals.fat / fatGoal) * 100)) : 0;
 
   async function handleSaveGoal(e: React.FormEvent) {
     e.preventDefault();
@@ -79,6 +108,39 @@ export function CalorieSummary({
       setIsEditingGoal(false);
     }
   }
+
+  const macroCards = [
+    {
+      key: "protein",
+      testId: "total-protein",
+      label: t.macros.protein,
+      amount: totals.protein,
+      goal: proteinGoal,
+      sharePct: proteinPct,
+      goalPct: proteinGoalPct,
+      dotClass: "bg-macro-protein",
+    },
+    {
+      key: "carbs",
+      testId: "total-carbs",
+      label: t.macros.carbs,
+      amount: totals.carbs,
+      goal: carbsGoal,
+      sharePct: carbsPct,
+      goalPct: carbsGoalPct,
+      dotClass: "bg-macro-carbs",
+    },
+    {
+      key: "fat",
+      testId: "total-fat",
+      label: t.macros.fat,
+      amount: totals.fat,
+      goal: fatGoal,
+      sharePct: fatPct,
+      goalPct: fatGoalPct,
+      dotClass: "bg-macro-fat",
+    },
+  ] as const;
 
   return (
     <section
@@ -99,26 +161,28 @@ export function CalorieSummary({
                   data-testid="total-calories"
                   className="font-display text-3xl font-bold tracking-tight text-ink tabular-nums sm:text-5xl"
                 >
-                  {formatLocaleNumber(totals.calories)}
+                  {formatEnergyValue(totals.calories, energyUnit)}
                 </span>
                 <span className="text-sm font-medium text-ink-secondary tabular-nums sm:text-lg">
-                  / {formatLocaleNumber(dailyGoal)} {t.units.kcal}
+                  / {formatEnergyValue(dailyGoal, energyUnit)} {unitLabel}
                 </span>
               </div>
             </div>
 
             {!isEditingGoal ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setGoalInput(String(dailyGoal));
-                  setGoalError(null);
-                  setIsEditingGoal(true);
-                }}
-                className="rounded-lg border border-border-subtle bg-elevated px-3 py-1.5 text-xs font-medium text-ink-secondary transition-colors hover:border-border-strong hover:text-ink"
-              >
-                {t.summary.editGoal}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGoalInput(String(dailyGoal));
+                    setGoalError(null);
+                    setIsEditingGoal(true);
+                  }}
+                  className="rounded-lg border border-border-subtle bg-elevated px-3 py-1.5 text-xs font-medium text-ink-secondary transition-colors hover:border-border-strong hover:text-ink"
+                >
+                  {t.summary.editGoal}
+                </button>
+              </div>
             ) : (
               <form
                 onSubmit={(e) => void handleSaveGoal(e)}
@@ -198,11 +262,13 @@ export function CalorieSummary({
             <p className="text-sm font-medium text-ink-secondary">
               {t.summary.macroBreakdown}
             </p>
-            <span className="text-xs text-ink-muted tabular-nums">
-              {totalMacroKcal > 0
-                ? t.summary.shareOfCalories
-                : t.summary.noMacrosLogged}
-            </span>
+            <button
+              type="button"
+              onClick={onOpenPreferences}
+              className="text-xs font-medium text-accent transition-colors hover:text-accent-hover hover:underline underline-offset-2"
+            >
+              {t.preferences.buttonLabel}
+            </button>
           </div>
 
           <div
@@ -243,68 +309,40 @@ export function CalorieSummary({
           </div>
 
           <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-2.5">
-            <div className="min-w-0 rounded-xl border border-border-subtle bg-elevated px-2.5 py-2 sm:px-3 sm:py-2.5">
-              <div className="flex items-center gap-1.5">
-                <span
-                  aria-hidden="true"
-                  className="h-2 w-2 shrink-0 rounded-full bg-macro-protein"
-                />
-                <span className="truncate text-xs font-medium text-ink-secondary">
-                  {t.macros.protein}
-                </span>
-              </div>
-              <p
-                data-testid="total-protein"
-                className="mt-1.5 font-display text-base font-bold text-ink tabular-nums sm:text-lg"
+            {macroCards.map((macro) => (
+              <div
+                key={macro.key}
+                className="min-w-0 rounded-xl border border-border-subtle bg-elevated px-2.5 py-2 sm:px-3 sm:py-2.5"
               >
-                {formatGrams(totals.protein, locale)}
-              </p>
-              <p className="text-xs text-ink-muted tabular-nums">
-                {proteinPct}%
-              </p>
-            </div>
-
-            <div className="min-w-0 rounded-xl border border-border-subtle bg-elevated px-2.5 py-2 sm:px-3 sm:py-2.5">
-              <div className="flex items-center gap-1.5">
-                <span
-                  aria-hidden="true"
-                  className="h-2 w-2 shrink-0 rounded-full bg-macro-carbs"
-                />
-                <span className="truncate text-xs font-medium text-ink-secondary">
-                  {t.macros.carbs}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className={`h-2 w-2 shrink-0 rounded-full ${macro.dotClass}`}
+                  />
+                  <span className="truncate text-xs font-medium text-ink-secondary">
+                    {macro.label}
+                  </span>
+                </div>
+                <p
+                  data-testid={macro.testId}
+                  className="mt-1.5 font-display text-sm font-bold text-ink tabular-nums sm:text-base"
+                >
+                  {formatMacroAmount(macro.amount, locale, macroUnit)}
+                </p>
+                <p className="text-[11px] text-ink-muted tabular-nums">
+                  / {formatMacroAmount(macro.goal, locale, macroUnit)}
+                </p>
+                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-track">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 motion-reduce:transition-none ${macro.dotClass}`}
+                    style={{ width: `${macro.goalPct}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-[11px] text-ink-muted tabular-nums">
+                  {macro.sharePct}%
+                </p>
               </div>
-              <p
-                data-testid="total-carbs"
-                className="mt-1.5 font-display text-base font-bold text-ink tabular-nums sm:text-lg"
-              >
-                {formatGrams(totals.carbs, locale)}
-              </p>
-              <p className="text-xs text-ink-muted tabular-nums">
-                {carbsPct}%
-              </p>
-            </div>
-
-            <div className="min-w-0 rounded-xl border border-border-subtle bg-elevated px-2.5 py-2 sm:px-3 sm:py-2.5">
-              <div className="flex items-center gap-1.5">
-                <span
-                  aria-hidden="true"
-                  className="h-2 w-2 shrink-0 rounded-full bg-macro-fat"
-                />
-                <span className="truncate text-xs font-medium text-ink-secondary">
-                  {t.macros.fat}
-                </span>
-              </div>
-              <p
-                data-testid="total-fat"
-                className="mt-1.5 font-display text-base font-bold text-ink tabular-nums sm:text-lg"
-              >
-                {formatGrams(totals.fat, locale)}
-              </p>
-              <p className="text-xs text-ink-muted tabular-nums">
-                {fatPct}%
-              </p>
-            </div>
+            ))}
           </div>
         </div>
       </div>

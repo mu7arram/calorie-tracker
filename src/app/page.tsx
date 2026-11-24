@@ -6,14 +6,20 @@ import { CalorieSummary } from "@/components/CalorieSummary";
 import { DailyFoodLog } from "@/components/DailyFoodLog";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLocale } from "@/components/LocaleProvider";
+import { PreferencesModal } from "@/components/PreferencesModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { formatHeaderDate, formatLocaleNumber } from "@/lib/i18n";
+import {
+  formatEnergyValue,
+  formatHeaderDate,
+  getEnergyUnitLabel,
+} from "@/lib/i18n";
 import type {
   CustomFoodLogItem,
   DailyLogResponse,
   FoodItem,
   MealCategory,
   UserSettings,
+  UserSettingsPatch,
 } from "@/types/food";
 
 function getLocalDateString(): string {
@@ -37,17 +43,27 @@ const EMPTY_LOG: DailyLogResponse = {
   entries: [],
 };
 
+const DEFAULT_SETTINGS: UserSettings = {
+  dailyCalorieGoal: 2000,
+  proteinGoal: 150,
+  carbsGoal: 200,
+  fatGoal: 65,
+  energyUnit: "kcal",
+  macroUnit: "g",
+};
+
 export default function HomePage() {
   const { locale, t } = useLocale();
   const [todayDate, setTodayDate] = useState("");
   const [selectedMeal, setSelectedMeal] = useState<MealCategory>("Lunch");
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [dailyLog, setDailyLog] = useState<DailyLogResponse>(EMPTY_LOG);
-  const [dailyGoal, setDailyGoal] = useState<number>(2000);
+  const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [addingFoodId, setAddingFoodId] = useState<number | null>(null);
   const [isSavingAi, setIsSavingAi] = useState(false);
-  const [isSavingGoal, setIsSavingGoal] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -86,7 +102,7 @@ export default function HomePage() {
 
         setFoods(foodsData.foods);
         setDailyLog(logData);
-        setDailyGoal(settingsData.dailyCalorieGoal);
+        setSettings({ ...DEFAULT_SETTINGS, ...settingsData });
       } catch (error) {
         setErrorMessage(
           error instanceof Error ? error.message : t.errors.loadFailed
@@ -215,37 +231,59 @@ export default function HomePage() {
     }
   }
 
-  async function handleUpdateGoal(nextGoal: number): Promise<boolean> {
-    setIsSavingGoal(true);
+  async function handleUpdateSettings(
+    patch: UserSettingsPatch,
+    toastKind: "goal" | "preferences" = "preferences"
+  ): Promise<boolean> {
+    setIsSavingSettings(true);
     setErrorMessage(null);
 
     try {
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dailyCalorieGoal: nextGoal }),
+        body: JSON.stringify(patch),
       });
 
       const payload = (await res.json()) as Partial<UserSettings> & {
         error?: string;
       };
       if (!res.ok || typeof payload.dailyCalorieGoal !== "number") {
-        throw new Error(payload.error ?? t.errors.goalFailed);
+        throw new Error(
+          payload.error ??
+            (toastKind === "goal" ? t.errors.goalFailed : t.errors.preferencesFailed)
+        );
       }
 
-      setDailyGoal(payload.dailyCalorieGoal);
-      showStatus(
-        t.toasts.goalUpdated(formatLocaleNumber(payload.dailyCalorieGoal))
-      );
+      const nextSettings: UserSettings = { ...DEFAULT_SETTINGS, ...payload };
+      setSettings(nextSettings);
+      if (toastKind === "goal") {
+        showStatus(
+          t.toasts.goalUpdated(
+            formatEnergyValue(nextSettings.dailyCalorieGoal, nextSettings.energyUnit),
+            getEnergyUnitLabel(locale, nextSettings.energyUnit)
+          )
+        );
+      } else {
+        showStatus(t.toasts.preferencesUpdated);
+      }
       return true;
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : t.errors.goalFailed
+        error instanceof Error
+          ? error.message
+          : toastKind === "goal"
+            ? t.errors.goalFailed
+            : t.errors.preferencesFailed
       );
       return false;
     } finally {
-      setIsSavingGoal(false);
+      setIsSavingSettings(false);
     }
+  }
+
+  async function handleUpdateGoal(nextGoal: number): Promise<boolean> {
+    return handleUpdateSettings({ dailyCalorieGoal: nextGoal }, "goal");
   }
 
   const formattedDate = formatHeaderDate(todayDate, locale);
@@ -316,6 +354,38 @@ export default function HomePage() {
               </time>
             ) : null}
             <div className="ms-auto flex items-center gap-2 sm:ms-0">
+              <button
+                type="button"
+                onClick={() => setIsPreferencesOpen(true)}
+                aria-label={t.preferences.buttonLabel}
+                title={t.preferences.buttonLabel}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border-subtle bg-surface px-2.5 text-xs font-medium text-ink-secondary transition-colors hover:border-border-strong hover:text-ink"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="4" x2="4" y1="21" y2="14" />
+                  <line x1="4" x2="4" y1="10" y2="3" />
+                  <line x1="12" x2="12" y1="21" y2="12" />
+                  <line x1="12" x2="12" y1="8" y2="3" />
+                  <line x1="20" x2="20" y1="21" y2="16" />
+                  <line x1="20" x2="20" y1="12" y2="3" />
+                  <line x1="2" x2="6" y1="14" y2="14" />
+                  <line x1="10" x2="14" y1="8" y2="8" />
+                  <line x1="18" x2="22" y1="16" y2="16" />
+                </svg>
+                <span className="hidden md:inline">
+                  {t.preferences.buttonLabel}
+                </span>
+              </button>
               <LanguageToggle />
               <ThemeToggle />
             </div>
@@ -344,9 +414,10 @@ export default function HomePage() {
           <CalorieSummary
             totals={dailyLog.totals}
             entryCount={dailyLog.entries.length}
-            dailyGoal={dailyGoal}
-            isSavingGoal={isSavingGoal}
+            settings={settings}
+            isSavingGoal={isSavingSettings}
             onUpdateGoal={handleUpdateGoal}
+            onOpenPreferences={() => setIsPreferencesOpen(true)}
           />
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-start">
@@ -360,6 +431,8 @@ export default function HomePage() {
                 addingFoodId={addingFoodId}
                 isSavingAi={isSavingAi}
                 selectedMeal={selectedMeal}
+                energyUnit={settings.energyUnit}
+                macroUnit={settings.macroUnit}
                 onSelectMeal={setSelectedMeal}
                 onAddFood={handleAddFood}
                 onSaveAiItems={handleSaveAiItems}
@@ -372,6 +445,8 @@ export default function HomePage() {
                 isLoading={isLoading}
                 deletingId={deletingId}
                 activeMealCategory={selectedMeal}
+                energyUnit={settings.energyUnit}
+                macroUnit={settings.macroUnit}
                 onSelectMealCategory={setSelectedMeal}
                 onDeleteEntry={handleDeleteEntry}
               />
@@ -379,6 +454,14 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+
+      <PreferencesModal
+        open={isPreferencesOpen}
+        settings={settings}
+        isSaving={isSavingSettings}
+        onClose={() => setIsPreferencesOpen(false)}
+        onSave={(patch) => handleUpdateSettings(patch, "preferences")}
+      />
     </div>
   );
 }

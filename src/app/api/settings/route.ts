@@ -1,20 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDailyCalorieGoal, setDailyCalorieGoal } from "@/lib/db";
+import {
+  getUserSettings,
+  isValidEnergyUnit,
+  isValidMacroUnit,
+  updateUserSettings,
+} from "@/lib/db";
+import type { UserSettingsPatch } from "@/types/food";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MIN_GOAL = 500;
-const MAX_GOAL = 10000;
+function isIntInRange(value: unknown, min: number, max: number): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= min &&
+    value <= max
+  );
+}
 
 export async function GET() {
   try {
-    const dailyCalorieGoal = await getDailyCalorieGoal();
-    return NextResponse.json({ dailyCalorieGoal });
+    const settings = await getUserSettings();
+    return NextResponse.json(settings);
   } catch (error) {
     console.error("Failed to fetch user settings:", error);
     return NextResponse.json(
-      { error: "Failed to load daily calorie goal" },
+      { error: "Failed to load user preferences" },
       { status: 500 }
     );
   }
@@ -35,30 +47,86 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const { dailyCalorieGoal } = body as Record<string, unknown>;
-  if (
-    typeof dailyCalorieGoal !== "number" ||
-    !Number.isInteger(dailyCalorieGoal) ||
-    dailyCalorieGoal < MIN_GOAL ||
-    dailyCalorieGoal > MAX_GOAL
-  ) {
+  const record = body as Record<string, unknown>;
+  const patch: UserSettingsPatch = {};
+
+  if ("dailyCalorieGoal" in record) {
+    if (!isIntInRange(record.dailyCalorieGoal, 500, 10000)) {
+      return NextResponse.json(
+        {
+          error: "'dailyCalorieGoal' must be a whole number between 500 and 10000",
+        },
+        { status: 400 }
+      );
+    }
+    patch.dailyCalorieGoal = record.dailyCalorieGoal;
+  }
+
+  if ("proteinGoal" in record) {
+    if (!isIntInRange(record.proteinGoal, 10, 500)) {
+      return NextResponse.json(
+        { error: "'proteinGoal' must be a whole number between 10 and 500" },
+        { status: 400 }
+      );
+    }
+    patch.proteinGoal = record.proteinGoal;
+  }
+
+  if ("carbsGoal" in record) {
+    if (!isIntInRange(record.carbsGoal, 0, 1000)) {
+      return NextResponse.json(
+        { error: "'carbsGoal' must be a whole number between 0 and 1000" },
+        { status: 400 }
+      );
+    }
+    patch.carbsGoal = record.carbsGoal;
+  }
+
+  if ("fatGoal" in record) {
+    if (!isIntInRange(record.fatGoal, 10, 300)) {
+      return NextResponse.json(
+        { error: "'fatGoal' must be a whole number between 10 and 300" },
+        { status: 400 }
+      );
+    }
+    patch.fatGoal = record.fatGoal;
+  }
+
+  if ("energyUnit" in record) {
+    if (!isValidEnergyUnit(record.energyUnit)) {
+      return NextResponse.json(
+        { error: "'energyUnit' must be either 'kcal' or 'kj'" },
+        { status: 400 }
+      );
+    }
+    patch.energyUnit = record.energyUnit;
+  }
+
+  if ("macroUnit" in record) {
+    if (!isValidMacroUnit(record.macroUnit)) {
+      return NextResponse.json(
+        { error: "'macroUnit' must be either 'g' or 'oz'" },
+        { status: 400 }
+      );
+    }
+    patch.macroUnit = record.macroUnit;
+  }
+
+  if (Object.keys(patch).length === 0) {
     return NextResponse.json(
-      {
-        error: `'dailyCalorieGoal' must be a whole number between ${MIN_GOAL} and ${MAX_GOAL}`,
-      },
+      { error: "Provide at least one valid preference field to update" },
       { status: 400 }
     );
   }
 
   try {
-    const saved = await setDailyCalorieGoal(dailyCalorieGoal);
-    return NextResponse.json({ dailyCalorieGoal: saved });
+    const saved = await updateUserSettings(patch);
+    return NextResponse.json(saved);
   } catch (error) {
     console.error("Failed to update user settings:", error);
     return NextResponse.json(
-      { error: "Failed to save daily calorie goal" },
+      { error: "Failed to save user preferences" },
       { status: 500 }
     );
   }
 }
-

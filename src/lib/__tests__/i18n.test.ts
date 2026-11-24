@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   FOOD_TRANSLATIONS,
+  formatEnergy,
   formatGrams,
   formatHeaderDate,
+  formatMacroAmount,
   getLocaleDirection,
   localizeFoodItem,
   matchesFoodSearch,
@@ -45,5 +47,14 @@ describe("Internationalization helpers & catalog translations", () => {
     assert.ok(arDate.includes("21"));
     assert.equal(formatGrams(99.1, "en"), "99.1g");
     assert.equal(formatGrams(99.1, "ar"), "99.1 غ");
+  });
+
+  it("converts and formats energy (kcal/kJ) and macro (g/oz) units across locales", () => {
+    assert.equal(formatEnergy(2000, "en", "kcal"), "2,000 kcal");
+    assert.equal(formatEnergy(2000, "en", "kj"), "8,368 kJ");
+    assert.equal(formatEnergy(500, "ar", "kj"), "2,092 ك.جول");
+    assert.equal(formatMacroAmount(150, "en", "g"), "150g");
+    assert.equal(formatMacroAmount(150, "en", "oz"), "5.3 oz");
+    assert.equal(formatMacroAmount(28.35, "ar", "oz"), "1 أونصة");
   });
 });

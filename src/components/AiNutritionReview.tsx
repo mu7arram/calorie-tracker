@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "@/components/LocaleProvider";
 import {
-  formatGrams,
-  formatLocaleNumber,
+  formatEnergy,
+  formatMacroAmount,
   type LocalizedStrings,
 } from "@/lib/i18n";
 import type {
   CustomFoodLogItem,
+  EnergyUnit,
+  MacroUnit,
   MealCategory,
   NutritionLookupResponse,
 } from "@/types/food";
@@ -78,6 +80,8 @@ export function LoadingSpinner({ label }: { label: string }) {
 interface AiNutritionReviewProps {
   result: NutritionLookupResponse;
   selectedMeal: MealCategory;
+  energyUnit?: EnergyUnit;
+  macroUnit?: MacroUnit;
   isSaving: boolean;
   onConfirm: (items: CustomFoodLogItem[]) => Promise<void>;
   onDiscard: () => void;
@@ -86,6 +90,8 @@ interface AiNutritionReviewProps {
 export function AiNutritionReview({
   result,
   selectedMeal,
+  energyUnit = "kcal",
+  macroUnit = "g",
   isSaving,
   onConfirm,
   onDiscard,
@@ -167,7 +173,7 @@ export function AiNutritionReview({
                       {item.name}
                     </span>
                     <span className="shrink-0 text-sm font-semibold text-ink tabular-nums">
-                      {formatLocaleNumber(item.calories)} {t.units.kcal}
+                      {formatEnergy(item.calories, locale, energyUnit)}
                     </span>
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ink-secondary tabular-nums">
@@ -176,19 +182,19 @@ export function AiNutritionReview({
                       <span className="text-macro-protein">
                         {t.macros.proteinShort}
                       </span>{" "}
-                      {formatGrams(item.protein, locale)}
+                      {formatMacroAmount(item.protein, locale, macroUnit)}
                     </span>
                     <span>
                       <span className="text-macro-carbs">
                         {t.macros.carbsShort}
                       </span>{" "}
-                      {formatGrams(item.carbs, locale)}
+                      {formatMacroAmount(item.carbs, locale, macroUnit)}
                     </span>
                     <span>
                       <span className="text-macro-fat">
                         {t.macros.fatShort}
                       </span>{" "}
-                      {formatGrams(item.fat, locale)}
+                      {formatMacroAmount(item.fat, locale, macroUnit)}
                     </span>
                   </div>
                 </div>
@@ -202,21 +208,21 @@ export function AiNutritionReview({
         <span>
           {t.aiReview.selectedSubtotal}{" "}
           <strong className="text-ink">
-            {formatLocaleNumber(subtotal.calories)} {t.units.kcal}
+            {formatEnergy(subtotal.calories, locale, energyUnit)}
           </strong>
         </span>
         <div className="flex items-center gap-3">
           <span>
             <span className="text-macro-protein">{t.macros.proteinShort}</span>{" "}
-            {formatGrams(subtotal.protein, locale)}
+            {formatMacroAmount(subtotal.protein, locale, macroUnit)}
           </span>
           <span>
             <span className="text-macro-carbs">{t.macros.carbsShort}</span>{" "}
-            {formatGrams(subtotal.carbs, locale)}
+            {formatMacroAmount(subtotal.carbs, locale, macroUnit)}
           </span>
           <span>
             <span className="text-macro-fat">{t.macros.fatShort}</span>{" "}
-            {formatGrams(subtotal.fat, locale)}
+            {formatMacroAmount(subtotal.fat, locale, macroUnit)}
           </span>
         </div>
       </div>

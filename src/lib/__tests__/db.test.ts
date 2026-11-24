@@ -6,13 +6,16 @@ import {
   addFoodLog,
   createDatabase,
   DEFAULT_DAILY_CALORIE_GOAL,
+  DEFAULT_USER_SETTINGS,
   deleteFoodLog,
   getDailyCalorieGoal,
   getDailyLog,
+  getUserSettings,
   initSchemaAndSeed,
   isValidDateString,
   listFoods,
   setDailyCalorieGoal,
+  updateUserSettings,
 } from "../db";
 
 describe("Calorie Tracker libSQL data layer", () => {
@@ -206,5 +209,36 @@ describe("Calorie Tracker libSQL data layer", () => {
     const saved = await setDailyCalorieGoal(2350, db);
     assert.equal(saved, 2350);
     assert.equal(await getDailyCalorieGoal(db), 2350);
+  });
+
+  it("reads default user preferences and persists partial macro and unit updates", async () => {
+    const db = await createDatabase(":memory:");
+    assert.deepEqual(await getUserSettings(db), DEFAULT_USER_SETTINGS);
+
+    const updated = await updateUserSettings(
+      {
+        dailyCalorieGoal: 2400,
+        proteinGoal: 180,
+        carbsGoal: 240,
+        fatGoal: 75,
+        energyUnit: "kj",
+        macroUnit: "oz",
+      },
+      db
+    );
+    assert.deepEqual(updated, {
+      dailyCalorieGoal: 2400,
+      proteinGoal: 180,
+      carbsGoal: 240,
+      fatGoal: 75,
+      energyUnit: "kj",
+      macroUnit: "oz",
+    });
+
+    // Partial update must preserve untouched preferences
+    const partial = await updateUserSettings({ energyUnit: "kcal" }, db);
+    assert.equal(partial.energyUnit, "kcal");
+    assert.equal(partial.macroUnit, "oz");
+    assert.equal(partial.proteinGoal, 180);
   });
 });
