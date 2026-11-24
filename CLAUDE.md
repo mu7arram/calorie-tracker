@@ -1,23 +1,21 @@
 # Calorie Tracker
 
-A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie and macronutrient tracker with Light, Dark, and System themes (radial View Transition reveal), Directional Silk Curtain + Layout Morph language transitions, no login required, local SQLite persistence, meal-category grouping, editable daily calorie goals, and three ways to add food (catalog quick add, Gemini AI text lookup, and Gemini AI meal photo analysis).
+A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie and macronutrient tracker with Light, Dark, and System themes (radial View Transition reveal), Directional Silk Curtain + Layout Morph language transitions, no login required, Turso/libSQL persistence (with local SQLite file fallback), meal-category grouping, editable daily calorie goals, and three ways to add food (catalog quick add, Gemini AI text lookup, and Gemini AI meal photo analysis).
 
 ## Running the App
 
-- **Requirements:** Node.js `>= 22.13.0` (uses built-in `node:sqlite`).
+- **Requirements:** Node.js `>= 22.13.0`
 - **Install dependencies:** `npm install`
 - **Start dev server:** `npm run dev` -> open [http://localhost:3005](http://localhost:3005)
 - **Run unit tests:** `npm test`
 - **Production build:** `npm run build` and `npm start`
 - **Lint:** `npm run lint`
 
-> **Note on `ExperimentalWarning`:** Node emits `ExperimentalWarning: SQLite is an experimental feature` on server startup because `src/lib/db.ts` uses `node:sqlite`. This is expected and harmless.
-
 ## Tech Stack
 
 - **Framework:** Next.js 15 (App Router), React 19, TypeScript
 - **Styling & Typography:** Tailwind CSS v4 (`@tailwindcss/postcss`), `Bricolage Grotesque` + `DM Sans` + `IBM Plex Sans Arabic` (`next/font/google`)
-- **Database:** Local SQLite (`data/calorie-tracker.db`) via Node's built-in `node:sqlite` (`DatabaseSync`, WAL mode)
+- **Database:** Async libSQL via `@libsql/client` — connects to Turso (`TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN`) on Vercel and defaults to local `file:data/calorie-tracker.db` in development
 - **AI Nutrition Lookup:** Gemini REST API (`gemini-3.5-flash-lite`) via `GEMINI_API_KEY`
 - **Tests:** Node built-in test runner (`node --import tsx --test`)
 
@@ -25,7 +23,8 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
 
 ```text
 .
-├── .env                                          # Environment variables (GEMINI_API_KEY)
+├── .env                                          # Local secrets (GEMINI_API_KEY; gitignored)
+├── .env.example                                  # Environment variable template
 ├── CLAUDE.md                                     # Project overview and quick reference
 ├── PLAN.md                                       # Summary of built features, improvements & roadmap
 ├── docs/
@@ -34,7 +33,8 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
 │   ├── 2026-11-20-ai-frontend-integration.md     # Frontend AI tabs & batch log decision log
 │   ├── 2026-11-20-design-polish-and-features.md  # Dark-mode redesign & audit loop log
 │   ├── 2026-11-21-theme-switcher-view-transition.md # Light/Dark/System radial reveal log
-│   └── 2026-11-21-multilanguage-rtl-transitions.md  # EN/ES/AR RTL & silk curtain log
+│   ├── 2026-11-21-multilanguage-rtl-transitions.md  # EN/ES/AR RTL & silk curtain log
+│   └── 2026-11-24-vercel-turso-migration.md      # Async libSQL/Turso & Vercel migration log
 ├── data/                                         # Auto-created SQLite DB directory (gitignored)
 └── src/
     ├── types/food.ts                             # Shared TypeScript types & MEAL_CATEGORIES
@@ -78,7 +78,6 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
 
 ## Next Steps
 
-1. **Deploy to Vercel:** Replace local file-based `data/calorie-tracker.db` with a hosted SQL database (such as Turso/LibSQL or Vercel Postgres) since serverless functions have ephemeral filesystems, and configure `GEMINI_API_KEY` in Vercel environment variables.
+1. **User Preferences:** Support customizable daily protein/carbs/fat macro targets, unit preferences (kcal vs. kJ, grams vs. ounces), and custom meal categories.
 2. **Food History Charts:** Add multi-day date navigation and 7-day / 30-day calorie and macro trend charts.
-3. **User Preferences:** Support customizable daily protein/carbs/fat macro targets, unit preferences (grams vs. ounces), and custom meal categories.
-4. **Barcode Scanning:** Add camera-based UPC/EAN barcode scanning (or Open Food Facts lookup) as a fourth logging method for packaged foods.
+3. **Barcode Scanning:** Add camera-based UPC/EAN barcode scanning (backed by Open Food Facts lookup) as a fourth logging method for packaged foods.

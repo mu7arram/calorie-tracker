@@ -28,6 +28,7 @@ dist/
 build/
 .next/
 next-env.d.ts
+*.tsbuildinfo
 
 # Local SQLite database
 data/

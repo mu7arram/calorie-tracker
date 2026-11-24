@@ -19,7 +19,7 @@ export async function DELETE(
   }
 
   try {
-    const deleted = deleteFoodLog(numericId);
+    const deleted = await deleteFoodLog(numericId);
     if (!deleted) {
       return NextResponse.json(
         { error: "Food log entry not found" },

@@ -9,7 +9,7 @@ const MAX_GOAL = 10000;
 
 export async function GET() {
   try {
-    const dailyCalorieGoal = getDailyCalorieGoal();
+    const dailyCalorieGoal = await getDailyCalorieGoal();
     return NextResponse.json({ dailyCalorieGoal });
   } catch (error) {
     console.error("Failed to fetch user settings:", error);
@@ -51,7 +51,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const saved = setDailyCalorieGoal(dailyCalorieGoal);
+    const saved = await setDailyCalorieGoal(dailyCalorieGoal);
     return NextResponse.json({ dailyCalorieGoal: saved });
   } catch (error) {
     console.error("Failed to update user settings:", error);

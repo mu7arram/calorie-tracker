@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const dailyLog = getDailyLog(date);
+    const dailyLog = await getDailyLog(date);
     return NextResponse.json(dailyLog);
   } catch (error) {
     console.error("Failed to fetch daily log:", error);
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const updatedLog = addCustomFoodLogs({
+      const updatedLog = await addCustomFoodLogs({
         items: validatedItems,
         loggedDate,
         mealCategory,
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const updatedLog = addFoodLog({
+    const updatedLog = await addFoodLog({
       foodId,
       servings,
       loggedDate,

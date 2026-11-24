@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
     const query = request.nextUrl.searchParams.get("q")?.trim().toLowerCase() ?? "";
-    const foods = listFoods();
+    const foods = await listFoods();
     const filtered = query
       ? foods.filter((food) => food.name.toLowerCase().includes(query))
       : foods;
