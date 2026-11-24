@@ -7,9 +7,22 @@ export const MEAL_CATEGORIES = [
 
 export type MealCategory = (typeof MEAL_CATEGORIES)[number];
 
+export const ENERGY_UNITS = ["kcal", "kj"] as const;
+export type EnergyUnit = (typeof ENERGY_UNITS)[number];
+
+export const MACRO_UNITS = ["g", "oz"] as const;
+export type MacroUnit = (typeof MACRO_UNITS)[number];
+
 export interface UserSettings {
   dailyCalorieGoal: number;
+  proteinGoal: number;
+  carbsGoal: number;
+  fatGoal: number;
+  energyUnit: EnergyUnit;
+  macroUnit: MacroUnit;
 }
+
+export type UserSettingsPatch = Partial<UserSettings>;
 
 export interface FoodItem {
   id: number;

@@ -1,4 +1,9 @@
-import type { FoodItem, MealCategory } from "@/types/food";
+import type {
+  EnergyUnit,
+  FoodItem,
+  MacroUnit,
+  MealCategory,
+} from "@/types/food";
 
 export const SUPPORTED_LOCALES = ["en", "es", "ar"] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
@@ -52,10 +57,58 @@ export function formatLocaleNumber(value: number): string {
       });
 }
 
+const KCAL_TO_KJ = 4.184;
+const GRAMS_PER_OZ = 28.3495;
+
+export function convertEnergy(kcal: number, unit: EnergyUnit = "kcal"): number {
+  if (unit === "kj") {
+    return Math.round(kcal * KCAL_TO_KJ);
+  }
+  return Math.round(kcal * 10) / 10;
+}
+
+export function formatEnergyValue(
+  kcal: number,
+  unit: EnergyUnit = "kcal"
+): string {
+  return formatLocaleNumber(convertEnergy(kcal, unit));
+}
+
+export function getEnergyUnitLabel(
+  locale: Locale,
+  unit: EnergyUnit = "kcal"
+): string {
+  return unit === "kj"
+    ? TRANSLATIONS[locale].units.kj
+    : TRANSLATIONS[locale].units.kcal;
+}
+
+export function formatEnergy(
+  kcal: number,
+  locale: Locale,
+  unit: EnergyUnit = "kcal"
+): string {
+  return `${formatEnergyValue(kcal, unit)} ${getEnergyUnitLabel(locale, unit)}`;
+}
+
 export function formatGrams(value: number, locale: Locale): string {
   const formatted = formatLocaleNumber(value);
   const unit = TRANSLATIONS[locale].units.grams;
   return locale === "ar" ? `${formatted} ${unit}` : `${formatted}${unit}`;
+}
+
+export function formatMacroAmount(
+  grams: number,
+  locale: Locale,
+  unit: MacroUnit = "g"
+): string {
+  if (unit === "oz") {
+    const ounces = Math.round((grams / GRAMS_PER_OZ) * 10) / 10;
+    const formatted = formatLocaleNumber(ounces);
+    const label = TRANSLATIONS[locale].units.oz;
+    return `${formatted} ${label}`;
+  }
+  return formatGrams(grams, locale);
 }
 
 export function formatHeaderDate(dateStr: string, locale: Locale): string {
@@ -74,7 +127,9 @@ export interface LocalizedStrings {
   appName: string;
   units: {
     kcal: string;
+    kj: string;
     grams: string;
+    oz: string;
   };
   macros: {
     protein: string;
@@ -96,6 +151,34 @@ export interface LocalizedStrings {
     label: string;
     menuLabel: string;
   };
+  preferences: {
+    buttonLabel: string;
+    title: string;
+    subtitle: string;
+    closeAria: string;
+    dailyCalorieGoal: string;
+    macroTargets: string;
+    autoSplit: string;
+    macroCalorieSum: (energy: string) => string;
+    macroMismatchBelow: (macroEnergy: string, diffEnergy: string) => string;
+    macroMismatchAbove: (macroEnergy: string, diffEnergy: string) => string;
+    displayUnits: string;
+    energyUnitLabel: string;
+    macroUnitLabel: string;
+    kcalOption: string;
+    kjOption: string;
+    gramsOption: string;
+    ozOption: string;
+    save: string;
+    saving: string;
+    cancel: string;
+    validation: {
+      calories: string;
+      protein: string;
+      carbs: string;
+      fat: string;
+    };
+  };
   summary: {
     sectionLabel: string;
     dailyCalorieIntake: string;
@@ -106,14 +189,16 @@ export interface LocalizedStrings {
     cancel: string;
     goalValidationError: string;
     progressLabel: string;
-    remaining: (amount: string) => string;
+    remaining: (amount: string, unit?: string) => string;
     goalReached: string;
-    overGoal: (amount: string) => string;
+    overGoal: (amount: string, unit?: string) => string;
     percentOfGoal: (pct: number, count: number) => string;
     macroBreakdown: string;
     shareOfCalories: string;
     noMacrosLogged: string;
     macroDistributionLabel: string;
+    macroSyncNotice: (macroEnergy: string, goalEnergy: string) => string;
+    syncMacros: string;
   };
   addPanel: {
     sectionLabel: string;
@@ -203,7 +288,9 @@ export interface LocalizedStrings {
     addedSingle: (meal: string) => string;
     addedMultiple: (count: number, meal: string) => string;
     removedEntry: string;
-    goalUpdated: (goal: string) => string;
+    goalUpdated: (goal: string, unit?: string) => string;
+    preferencesUpdated: string;
+    macrosSynced: string;
   };
   errors: {
     loadFailed: string;
@@ -212,6 +299,7 @@ export interface LocalizedStrings {
     deleteFailed: string;
     refreshAfterDeleteFailed: string;
     goalFailed: string;
+    preferencesFailed: string;
     dismiss: string;
   };
 }
@@ -221,7 +309,9 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
     appName: "Calorie Tracker",
     units: {
       kcal: "kcal",
+      kj: "kJ",
       grams: "g",
+      oz: "oz",
     },
     macros: {
       protein: "Protein",
@@ -249,6 +339,36 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       label: "Select language",
       menuLabel: "Language options",
     },
+    preferences: {
+      buttonLabel: "Preferences",
+      title: "Nutrition preferences",
+      subtitle: "Customize your daily calorie & macro targets and display units.",
+      closeAria: "Close preferences",
+      dailyCalorieGoal: "Daily calorie goal (kcal)",
+      macroTargets: "Daily macro targets (grams)",
+      autoSplit: "Auto-split 30/40/30",
+      macroCalorieSum: (energy) => `Macro targets equal ~${energy}`,
+      macroMismatchBelow: (macroEnergy, diffEnergy) =>
+        `Macros total ~${macroEnergy} (${diffEnergy} below your calorie goal)`,
+      macroMismatchAbove: (macroEnergy, diffEnergy) =>
+        `Macros total ~${macroEnergy} (${diffEnergy} above your calorie goal)`,
+      displayUnits: "Display units",
+      energyUnitLabel: "Energy",
+      macroUnitLabel: "Macros",
+      kcalOption: "kcal",
+      kjOption: "kJ",
+      gramsOption: "Grams (g)",
+      ozOption: "Ounces (oz)",
+      save: "Save preferences",
+      saving: "Saving...",
+      cancel: "Cancel",
+      validation: {
+        calories: "Daily calorie goal must be a whole number between 500 and 10,000 kcal.",
+        protein: "Protein target must be a whole number between 10 and 800 g.",
+        carbs: "Carbs target must be a whole number between 0 and 1,500 g.",
+        fat: "Fat target must be a whole number between 10 and 400 g.",
+      },
+    },
     summary: {
       sectionLabel: "Daily nutrition summary",
       dailyCalorieIntake: "Daily calorie intake",
@@ -259,15 +379,18 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       cancel: "Cancel",
       goalValidationError: "Enter a whole number between 500 and 10,000 kcal.",
       progressLabel: "Daily calorie goal progress",
-      remaining: (amount) => `${amount} kcal remaining`,
+      remaining: (amount, unit = "kcal") => `${amount} ${unit} remaining`,
       goalReached: "Daily goal reached",
-      overGoal: (amount) => `${amount} kcal over goal`,
+      overGoal: (amount, unit = "kcal") => `${amount} ${unit} over goal`,
       percentOfGoal: (pct, count) =>
         `${pct}% of goal (${count} ${count === 1 ? "item" : "items"})`,
       macroBreakdown: "Macro breakdown",
       shareOfCalories: "Share of calories",
       noMacrosLogged: "No macros logged",
       macroDistributionLabel: "Macronutrient calorie distribution",
+      macroSyncNotice: (macroEnergy, goalEnergy) =>
+        `Macro targets total ~${macroEnergy} vs. your ${goalEnergy} goal.`,
+      syncMacros: "Sync macros",
     },
     addPanel: {
       sectionLabel: "Add food",
@@ -368,7 +491,9 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       addedSingle: (meal) => `Added to ${meal}`,
       addedMultiple: (count, meal) => `Added ${count} items to ${meal}`,
       removedEntry: "Removed entry",
-      goalUpdated: (goal) => `Daily goal updated to ${goal} kcal`,
+      goalUpdated: (goal, unit = "kcal") => `Daily goal updated to ${goal} ${unit}`,
+      preferencesUpdated: "Preferences saved",
+      macrosSynced: "Macro targets synced to your calorie goal",
     },
     errors: {
       loadFailed: "Could not load your nutrition data. Refresh to retry.",
@@ -378,6 +503,7 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       refreshAfterDeleteFailed:
         "Removed entry, but could not refresh daily log.",
       goalFailed: "Could not update daily goal.",
+      preferencesFailed: "Could not save preferences.",
       dismiss: "Dismiss",
     },
   },
@@ -385,7 +511,9 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
     appName: "Calorie Tracker",
     units: {
       kcal: "kcal",
+      kj: "kJ",
       grams: "g",
+      oz: "oz",
     },
     macros: {
       protein: "Proteína",
@@ -413,6 +541,36 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       label: "Seleccionar idioma",
       menuLabel: "Opciones de idioma",
     },
+    preferences: {
+      buttonLabel: "Preferencias",
+      title: "Preferencias nutricionales",
+      subtitle: "Personaliza tus metas diarias de calorías, macros y unidades.",
+      closeAria: "Cerrar preferencias",
+      dailyCalorieGoal: "Meta calórica diaria (kcal)",
+      macroTargets: "Metas diarias de macros (gramos)",
+      autoSplit: "Reparto 30/40/30",
+      macroCalorieSum: (energy) => `Las metas de macros equivalen a ~${energy}`,
+      macroMismatchBelow: (macroEnergy, diffEnergy) =>
+        `Los macros suman ~${macroEnergy} (${diffEnergy} por debajo de tu meta)`,
+      macroMismatchAbove: (macroEnergy, diffEnergy) =>
+        `Los macros suman ~${macroEnergy} (${diffEnergy} por encima de tu meta)`,
+      displayUnits: "Unidades de visualización",
+      energyUnitLabel: "Energía",
+      macroUnitLabel: "Macros",
+      kcalOption: "kcal",
+      kjOption: "kJ",
+      gramsOption: "Gramos (g)",
+      ozOption: "Onzas (oz)",
+      save: "Guardar preferencias",
+      saving: "Guardando...",
+      cancel: "Cancelar",
+      validation: {
+        calories: "La meta calórica debe ser un entero entre 500 y 10,000 kcal.",
+        protein: "La meta de proteína debe ser un entero entre 10 y 800 g.",
+        carbs: "La meta de carbohidratos debe ser un entero entre 0 y 1,500 g.",
+        fat: "La meta de grasas debe ser un entero entre 10 y 400 g.",
+      },
+    },
     summary: {
       sectionLabel: "Resumen nutricional diario",
       dailyCalorieIntake: "Consumo calórico diario",
@@ -424,15 +582,18 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       goalValidationError:
         "Ingresa un número entero entre 500 y 10,000 kcal.",
       progressLabel: "Progreso de la meta calórica diaria",
-      remaining: (amount) => `Faltan ${amount} kcal`,
+      remaining: (amount, unit = "kcal") => `Faltan ${amount} ${unit}`,
       goalReached: "Meta diaria alcanzada",
-      overGoal: (amount) => `${amount} kcal por encima`,
+      overGoal: (amount, unit = "kcal") => `${amount} ${unit} por encima`,
       percentOfGoal: (pct, count) =>
         `${pct}% de la meta (${count} ${count === 1 ? "alimento" : "alimentos"})`,
       macroBreakdown: "Distribución de macros",
       shareOfCalories: "Porcentaje de calorías",
       noMacrosLogged: "Sin macros registrados",
       macroDistributionLabel: "Distribución calórica por macronutriente",
+      macroSyncNotice: (macroEnergy, goalEnergy) =>
+        `Tus macros suman ~${macroEnergy} frente a tu meta de ${goalEnergy}.`,
+      syncMacros: "Sincronizar macros",
     },
     addPanel: {
       sectionLabel: "Agregar alimento",
@@ -533,7 +694,10 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       addedSingle: (meal) => `Agregado a ${meal}`,
       addedMultiple: (count, meal) => `Se agregaron ${count} a ${meal}`,
       removedEntry: "Registro eliminado",
-      goalUpdated: (goal) => `Meta diaria actualizada a ${goal} kcal`,
+      goalUpdated: (goal, unit = "kcal") =>
+        `Meta diaria actualizada a ${goal} ${unit}`,
+      preferencesUpdated: "Preferencias guardadas",
+      macrosSynced: "Metas de macros sincronizadas con tu meta calórica",
     },
     errors: {
       loadFailed: "No se pudieron cargar tus datos. Recarga para reintentar.",
@@ -543,6 +707,7 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       refreshAfterDeleteFailed:
         "Se eliminó el registro, pero no se pudo actualizar la lista.",
       goalFailed: "No se pudo actualizar la meta diaria.",
+      preferencesFailed: "No se pudieron guardar las preferencias.",
       dismiss: "Cerrar",
     },
   },
@@ -550,7 +715,9 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
     appName: "متتبع السعرات",
     units: {
       kcal: "سعرة",
+      kj: "ك.جول",
       grams: "غ",
+      oz: "أونصة",
     },
     macros: {
       protein: "بروتين",
@@ -578,6 +745,36 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       label: "اختر اللغة",
       menuLabel: "خيارات اللغة",
     },
+    preferences: {
+      buttonLabel: "التفضيلات",
+      title: "تفضيلات التغذية",
+      subtitle: "خصّص أهداف السعرات والعناصر الغذائية اليومية ووحدات العرض.",
+      closeAria: "إغلاق التفضيلات",
+      dailyCalorieGoal: "هدف السعرات اليومي (سعرة)",
+      macroTargets: "أهداف العناصر اليومية (غرام)",
+      autoSplit: "توزيع تلقائي 30/40/30",
+      macroCalorieSum: (energy) => `مجموع أهداف العناصر ≈ ${energy}`,
+      macroMismatchBelow: (macroEnergy, diffEnergy) =>
+        `مجموع العناصر ≈ ${macroEnergy} (أقل من هدفك بـ ${diffEnergy})`,
+      macroMismatchAbove: (macroEnergy, diffEnergy) =>
+        `مجموع العناصر ≈ ${macroEnergy} (أعلى من هدفك بـ ${diffEnergy})`,
+      displayUnits: "وحدات العرض",
+      energyUnitLabel: "الطاقة",
+      macroUnitLabel: "العناصر",
+      kcalOption: "سعرة (kcal)",
+      kjOption: "ك.جول (kJ)",
+      gramsOption: "غرام (غ)",
+      ozOption: "أونصة (oz)",
+      save: "حفظ التفضيلات",
+      saving: "جارٍ الحفظ...",
+      cancel: "إلغاء",
+      validation: {
+        calories: "يجب أن يكون هدف السعرات رقمًا صحيحًا بين 500 و 10,000 سعرة.",
+        protein: "يجب أن يكون هدف البروتين رقمًا صحيحًا بين 10 و 800 غ.",
+        carbs: "يجب أن يكون هدف الكربوهيدرات رقمًا صحيحًا بين 0 و 1,500 غ.",
+        fat: "يجب أن يكون هدف الدهون رقمًا صحيحًا بين 10 و 400 غ.",
+      },
+    },
     summary: {
       sectionLabel: "ملخص التغذية اليومي",
       dailyCalorieIntake: "الاستهلاك اليومي للسعرات",
@@ -588,15 +785,18 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       cancel: "إلغاء",
       goalValidationError: "أدخل رقمًا صحيحًا بين 500 و 10,000 سعرة.",
       progressLabel: "تقدم هدف السعرات اليومي",
-      remaining: (amount) => `المتبقي ${amount} سعرة`,
+      remaining: (amount, unit = "سعرة") => `المتبقي ${amount} ${unit}`,
       goalReached: "تم الوصول إلى الهدف اليومي",
-      overGoal: (amount) => `تجاوز الهدف بـ ${amount} سعرة`,
+      overGoal: (amount, unit = "سعرة") => `تجاوز الهدف بـ ${amount} ${unit}`,
       percentOfGoal: (pct, count) =>
         `${pct}% من الهدف (${count} ${count === 1 ? "صنف" : "أصناف"})`,
       macroBreakdown: "توزيع العناصر الغذائية",
       shareOfCalories: "نسبة السعرات",
       noMacrosLogged: "لا توجد بيانات مسجلة",
       macroDistributionLabel: "توزيع السعرات بين العناصر الغذائية",
+      macroSyncNotice: (macroEnergy, goalEnergy) =>
+        `مجموع أهداف العناصر ≈ ${macroEnergy} مقابل هدف ${goalEnergy}.`,
+      syncMacros: "مزامنة العناصر",
     },
     addPanel: {
       sectionLabel: "إضافة طعام",
@@ -696,7 +896,10 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       addedSingle: (meal) => `تمت الإضافة إلى ${meal}`,
       addedMultiple: (count, meal) => `تمت إضافة ${count} أصناف إلى ${meal}`,
       removedEntry: "تم حذف الصنف",
-      goalUpdated: (goal) => `تم تحديث الهدف اليومي إلى ${goal} سعرة`,
+      goalUpdated: (goal, unit = "سعرة") =>
+        `تم تحديث الهدف اليومي إلى ${goal} ${unit}`,
+      preferencesUpdated: "تم حفظ التفضيلات",
+      macrosSynced: "تمت مزامنة أهداف العناصر مع هدف السعرات",
     },
     errors: {
       loadFailed: "تعذر تحميل بيانات التغذية. أعد تحميل الصفحة للمحاولة.",
@@ -705,6 +908,7 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       deleteFailed: "تعذر حذف الصنف.",
       refreshAfterDeleteFailed: "تم الحذف لكن تعذر تحديث القائمة.",
       goalFailed: "تعذر تحديث الهدف اليومي.",
+      preferencesFailed: "تعذر حفظ التفضيلات.",
       dismiss: "إغلاق",
     },
   },

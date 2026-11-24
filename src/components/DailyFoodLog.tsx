@@ -2,13 +2,15 @@
 
 import { useLocale } from "@/components/LocaleProvider";
 import {
-  formatGrams,
-  formatLocaleNumber,
+  formatEnergy,
+  formatMacroAmount,
   localizeLoggedFood,
 } from "@/lib/i18n";
 import {
   MEAL_CATEGORIES,
+  type EnergyUnit,
   type FoodLogEntry,
+  type MacroUnit,
   type MealCategory,
 } from "@/types/food";
 
@@ -17,6 +19,8 @@ interface DailyFoodLogProps {
   isLoading: boolean;
   deletingId: number | null;
   activeMealCategory: MealCategory;
+  energyUnit?: EnergyUnit;
+  macroUnit?: MacroUnit;
   onSelectMealCategory: (category: MealCategory) => void;
   onDeleteEntry: (id: number) => Promise<void>;
 }
@@ -36,6 +40,8 @@ export function DailyFoodLog({
   isLoading,
   deletingId,
   activeMealCategory,
+  energyUnit = "kcal",
+  macroUnit = "g",
   onSelectMealCategory,
   onDeleteEntry,
 }: DailyFoodLogProps) {
@@ -128,7 +134,7 @@ export function DailyFoodLog({
                     ) : null}
                   </div>
                   <span className="text-sm font-medium text-ink-secondary tabular-nums">
-                    {formatLocaleNumber(mealCalories)} {t.units.kcal}
+                    {formatEnergy(mealCalories, locale, energyUnit)}
                   </span>
                 </div>
 
@@ -189,8 +195,7 @@ export function DailyFoodLog({
 
                             <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
                               <span className="font-display text-base font-semibold text-ink tabular-nums">
-                                {formatLocaleNumber(entry.calories)}{" "}
-                                {t.units.kcal}
+                                {formatEnergy(entry.calories, locale, energyUnit)}
                               </span>
                               <button
                                 type="button"
@@ -211,19 +216,19 @@ export function DailyFoodLog({
                               <span className="font-medium text-macro-protein">
                                 {t.macros.proteinShort}
                               </span>{" "}
-                              {formatGrams(entry.protein, locale)}
+                              {formatMacroAmount(entry.protein, locale, macroUnit)}
                             </span>
                             <span className="rounded-md bg-elevated px-2 py-0.5 text-xs text-ink-secondary tabular-nums">
                               <span className="font-medium text-macro-carbs">
                                 {t.macros.carbsShort}
                               </span>{" "}
-                              {formatGrams(entry.carbs, locale)}
+                              {formatMacroAmount(entry.carbs, locale, macroUnit)}
                             </span>
                             <span className="rounded-md bg-elevated px-2 py-0.5 text-xs text-ink-secondary tabular-nums">
                               <span className="font-medium text-macro-fat">
                                 {t.macros.fatShort}
                               </span>{" "}
-                              {formatGrams(entry.fat, locale)}
+                              {formatMacroAmount(entry.fat, locale, macroUnit)}
                             </span>
                           </div>
                         </li>

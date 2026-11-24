@@ -8,7 +8,9 @@ import { useLocale } from "@/components/LocaleProvider";
 import {
   MEAL_CATEGORIES,
   type CustomFoodLogItem,
+  type EnergyUnit,
   type FoodItem,
+  type MacroUnit,
   type MealCategory,
 } from "@/types/food";
 
@@ -20,6 +22,8 @@ interface AddFoodPanelProps {
   addingFoodId: number | null;
   isSavingAi: boolean;
   selectedMeal: MealCategory;
+  energyUnit?: EnergyUnit;
+  macroUnit?: MacroUnit;
   onSelectMeal: (category: MealCategory) => void;
   onAddFood: (foodId: number, servings: number) => Promise<void>;
   onSaveAiItems: (items: CustomFoodLogItem[]) => Promise<boolean>;
@@ -31,6 +35,8 @@ export function AddFoodPanel({
   addingFoodId,
   isSavingAi,
   selectedMeal,
+  energyUnit = "kcal",
+  macroUnit = "g",
   onSelectMeal,
   onAddFood,
   onSaveAiItems,
@@ -134,6 +140,8 @@ export function AddFoodPanel({
           isLoading={isLoadingFoods}
           addingFoodId={addingFoodId}
           selectedMeal={selectedMeal}
+          energyUnit={energyUnit}
+          macroUnit={macroUnit}
           onAddFood={onAddFood}
         />
       </div>
@@ -147,6 +155,8 @@ export function AddFoodPanel({
         <AiTextLookup
           isSaving={isSavingAi}
           selectedMeal={selectedMeal}
+          energyUnit={energyUnit}
+          macroUnit={macroUnit}
           onSaveAiItems={onSaveAiItems}
         />
       </div>
@@ -160,6 +170,8 @@ export function AddFoodPanel({
         <AiPhotoLookup
           isSaving={isSavingAi}
           selectedMeal={selectedMeal}
+          energyUnit={energyUnit}
+          macroUnit={macroUnit}
           onSaveAiItems={onSaveAiItems}
         />
       </div>

@@ -9,6 +9,8 @@ import {
 import { useLocale } from "@/components/LocaleProvider";
 import type {
   CustomFoodLogItem,
+  EnergyUnit,
+  MacroUnit,
   MealCategory,
   NutritionLookupResponse,
 } from "@/types/food";
@@ -16,6 +18,8 @@ import type {
 interface AiPhotoLookupProps {
   isSaving: boolean;
   selectedMeal: MealCategory;
+  energyUnit?: EnergyUnit;
+  macroUnit?: MacroUnit;
   onSaveAiItems: (items: CustomFoodLogItem[]) => Promise<boolean>;
 }
 
@@ -39,6 +43,8 @@ function formatFileSize(bytes: number): string {
 export function AiPhotoLookup({
   isSaving,
   selectedMeal,
+  energyUnit = "kcal",
+  macroUnit = "g",
   onSaveAiItems,
 }: AiPhotoLookupProps) {
   const { locale, t } = useLocale();
@@ -280,6 +286,8 @@ export function AiPhotoLookup({
         <AiNutritionReview
           result={result}
           selectedMeal={selectedMeal}
+          energyUnit={energyUnit}
+          macroUnit={macroUnit}
           isSaving={isSaving}
           onConfirm={handleConfirm}
           onDiscard={() => setResult(null)}

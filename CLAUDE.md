@@ -34,7 +34,8 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
 │   ├── 2026-11-20-design-polish-and-features.md  # Dark-mode redesign & audit loop log
 │   ├── 2026-11-21-theme-switcher-view-transition.md # Light/Dark/System radial reveal log
 │   ├── 2026-11-21-multilanguage-rtl-transitions.md  # EN/ES/AR RTL & silk curtain log
-│   └── 2026-11-24-vercel-turso-migration.md      # Async libSQL/Turso & Vercel migration log
+│   ├── 2026-11-24-vercel-turso-migration.md      # Async libSQL/Turso & Vercel migration log
+│   └── 2026-11-24-user-preferences.md            # Custom macro targets & units modal log
 ├── data/                                         # Auto-created SQLite DB directory (gitignored)
 └── src/
     ├── types/food.ts                             # Shared TypeScript types & MEAL_CATEGORIES
@@ -48,7 +49,8 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
     │   ├── LocaleProvider.tsx                    # Locale context, RTL/LTR & View Transitions
     │   ├── LanguageToggle.tsx                    # Compact Globe switcher (EN / ES / عربي)
     │   ├── ThemeToggle.tsx                       # Light / Dark / System switcher + radial reveal
-    │   ├── CalorieSummary.tsx                    # Calorie goal progress bar & macro breakdown
+    │   ├── PreferencesModal.tsx                  # Native <dialog> for macro goals & units
+    │   ├── CalorieSummary.tsx                    # Calorie & macro target progress bars
     │   ├── AddFoodPanel.tsx                      # Meal selector + 3-tab input switcher
     │   ├── FoodSearchCatalog.tsx                 # Multilingual search & quick-add list
     │   ├── AiTextLookup.tsx                      # Plain-text AI meal description input
@@ -78,6 +80,5 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
 
 ## Next Steps
 
-1. **User Preferences:** Support customizable daily protein/carbs/fat macro targets, unit preferences (kcal vs. kJ, grams vs. ounces), and custom meal categories.
-2. **Food History Charts:** Add multi-day date navigation and 7-day / 30-day calorie and macro trend charts.
-3. **Barcode Scanning:** Add camera-based UPC/EAN barcode scanning (backed by Open Food Facts lookup) as a fourth logging method for packaged foods.
+1. **Food History Charts:** Add multi-day date navigation and 7-day / 30-day calorie and macro trend charts.
+2. **Barcode Scanning:** Add camera-based UPC/EAN barcode scanning (backed by Open Food Facts lookup) as a fourth logging method for packaged foods.
