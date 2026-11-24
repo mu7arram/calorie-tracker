@@ -22,7 +22,7 @@
 
 ## Future Roadmap
 1. ~~**Deploy to Vercel:**~~ *(Completed)* Migrated local `node:sqlite` to async `@libsql/client` (Turso) for serverless Vercel deployments.
-2. ~~**User Preferences:**~~ *(Completed in `feat/user-preferences`)* Added customizable daily Protein / Carbs / Fat targets, `kcal`/`kJ` and `g`/`oz` unit preferences, and a native `<dialog>` Preferences modal.
-3. **Food History Charts:** Add multi-day date navigation along with 7-day and 30-day calorie and macronutrient trend visualizations.
+2. ~~**User Preferences:**~~ *(Completed)* Added customizable daily Protein / Carbs / Fat targets, `kcal`/`kJ` and `g`/`oz` unit preferences, and a native `<dialog>` Preferences modal.
+3. ~~**Food History Charts:**~~ *(Completed in `feat/food-history-charts`)* Added multi-day date navigation (`DateNavigator`) and interactive 7-day / 30-day calorie & stacked macro trend charts (`HistoryCharts` + `GET /api/logs/history`).
 4. **Barcode Scanning:** Integrate camera-based UPC/EAN barcode scanning (backed by Open Food Facts or Gemini lookup) for packaged foods.
 

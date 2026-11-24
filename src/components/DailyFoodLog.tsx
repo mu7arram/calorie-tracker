@@ -4,6 +4,7 @@ import { useLocale } from "@/components/LocaleProvider";
 import {
   formatEnergy,
   formatMacroAmount,
+  formatShortDate,
   localizeLoggedFood,
 } from "@/lib/i18n";
 import {
@@ -19,6 +20,8 @@ interface DailyFoodLogProps {
   isLoading: boolean;
   deletingId: number | null;
   activeMealCategory: MealCategory;
+  selectedDate?: string;
+  todayDate?: string;
   energyUnit?: EnergyUnit;
   macroUnit?: MacroUnit;
   onSelectMealCategory: (category: MealCategory) => void;
@@ -40,12 +43,16 @@ export function DailyFoodLog({
   isLoading,
   deletingId,
   activeMealCategory,
+  selectedDate,
+  todayDate,
   energyUnit = "kcal",
   macroUnit = "g",
   onSelectMealCategory,
   onDeleteEntry,
 }: DailyFoodLogProps) {
   const { locale, t } = useLocale();
+  const isPastDate = Boolean(selectedDate && todayDate && selectedDate !== todayDate);
+  const shortDateLabel = selectedDate ? formatShortDate(selectedDate, locale) : "";
 
   const grouped = new Map<MealCategory, FoodLogEntry[]>();
   for (const category of MEAL_CATEGORIES) {
@@ -61,7 +68,7 @@ export function DailyFoodLog({
       <div className="flex items-baseline justify-between gap-2">
         <div>
           <h2 className="font-display text-xl font-semibold text-ink">
-            {t.foodLog.title}
+            {isPastDate ? t.foodLog.dateTitle(shortDateLabel) : t.foodLog.title}
           </h2>
           <p className="text-sm text-ink-secondary">{t.foodLog.subtitle}</p>
         </div>
@@ -84,7 +91,9 @@ export function DailyFoodLog({
       ) : entries.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border-strong bg-surface p-6 text-center sm:p-8">
           <h3 className="font-display text-lg font-semibold text-ink">
-            {t.foodLog.emptyTitle}
+            {isPastDate
+              ? t.foodLog.emptyPastTitle(shortDateLabel)
+              : t.foodLog.emptyTitle}
           </h3>
           <p className="mx-auto mt-1.5 max-w-md text-sm text-ink-secondary">
             {t.foodLog.emptySubtitle}

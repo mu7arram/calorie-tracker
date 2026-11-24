@@ -9,6 +9,7 @@ import {
   DEFAULT_USER_SETTINGS,
   deleteFoodLog,
   getDailyCalorieGoal,
+  getDailyHistory,
   getDailyLog,
   getUserSettings,
   initSchemaAndSeed,
@@ -255,5 +256,54 @@ describe("Calorie Tracker libSQL data layer", () => {
     assert.equal(highGoal.proteinGoal, 750);
     assert.equal(highGoal.carbsGoal, 1000);
     assert.equal(highGoal.fatGoal, 333);
+  });
+
+  it("aggregates multi-day history with zero-filled gaps and averages over logged days", async () => {
+    const db = await createDatabase(":memory:");
+    await addCustomFoodLogs(
+      {
+        loggedDate: "2026-11-20",
+        mealCategory: "Lunch",
+        items: [
+          {
+            name: "Chicken Bowl",
+            servingSize: "1 bowl",
+            calories: 600,
+            protein: 45,
+            carbs: 60,
+            fat: 18,
+          },
+        ],
+      },
+      db
+    );
+    await addCustomFoodLogs(
+      {
+        loggedDate: "2026-11-22",
+        mealCategory: "Dinner",
+        items: [
+          {
+            name: "Salmon Plate",
+            servingSize: "1 plate",
+            calories: 800,
+            protein: 55,
+            carbs: 50,
+            fat: 30,
+          },
+        ],
+      },
+      db
+    );
+
+    const history = await getDailyHistory("2026-11-20", "2026-11-22", db);
+    assert.equal(history.days.length, 3);
+    assert.equal(history.days[0].calories, 600);
+    assert.equal(history.days[1].calories, 0);
+    assert.equal(history.days[1].entryCount, 0);
+    assert.equal(history.days[2].calories, 800);
+    assert.equal(history.summary.daysLogged, 2);
+    assert.equal(history.summary.averageCalories, 700);
+    assert.equal(history.summary.averageProtein, 50);
+    assert.equal(history.summary.totalEntries, 2);
   });
 });

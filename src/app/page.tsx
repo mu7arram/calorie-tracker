@@ -4,6 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { AddFoodPanel } from "@/components/AddFoodPanel";
 import { CalorieSummary } from "@/components/CalorieSummary";
 import { DailyFoodLog } from "@/components/DailyFoodLog";
+import { DateNavigator } from "@/components/DateNavigator";
+import {
+  HistoryCharts,
+  type HistoryRangeDays,
+} from "@/components/HistoryCharts";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLocale } from "@/components/LocaleProvider";
 import { PreferencesModal } from "@/components/PreferencesModal";
@@ -16,6 +21,7 @@ import {
 import { scaleMacrosToCalorieGoal } from "@/lib/macro-sync";
 import type {
   CustomFoodLogItem,
+  DailyHistoryResponse,
   DailyLogResponse,
   FoodItem,
   MealCategory,
@@ -56,12 +62,18 @@ const DEFAULT_SETTINGS: UserSettings = {
 export default function HomePage() {
   const { locale, t } = useLocale();
   const [todayDate, setTodayDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
   const [selectedMeal, setSelectedMeal] = useState<MealCategory>("Lunch");
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [dailyLog, setDailyLog] = useState<DailyLogResponse>(EMPTY_LOG);
+  const [history, setHistory] = useState<DailyHistoryResponse | null>(null);
+  const [historyRange, setHistoryRange] = useState<HistoryRangeDays>(7);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingLog, setIsLoadingLog] = useState(false);
   const [addingFoodId, setAddingFoodId] = useState<number | null>(null);
   const [isSavingAi, setIsSavingAi] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -78,6 +90,33 @@ export default function HomePage() {
     const timer = window.setTimeout(() => setStatusMessage(null), 3000);
     return () => window.clearTimeout(timer);
   }, [statusMessage]);
+
+  const fetchHistory = useCallback(
+    async (endDate: string, days: HistoryRangeDays) => {
+      if (!endDate) return;
+      setIsLoadingHistory(true);
+      setHistoryError(null);
+
+      try {
+        const res = await fetch(
+          `/api/logs/history?endDate=${encodeURIComponent(endDate)}&days=${days}`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) {
+          throw new Error(t.history.loadFailed);
+        }
+        const data = (await res.json()) as DailyHistoryResponse;
+        setHistory(data);
+      } catch (error) {
+        setHistoryError(
+          error instanceof Error ? error.message : t.history.loadFailed
+        );
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    },
+    [t.history.loadFailed]
+  );
 
   const loadInitialData = useCallback(
     async (localDate: string) => {
@@ -119,12 +158,46 @@ export default function HomePage() {
     const now = new Date();
     const localDate = getLocalDateString();
     setTodayDate(localDate);
+    setSelectedDate(localDate);
     setSelectedMeal(getDefaultMealForHour(now.getHours()));
     void loadInitialData(localDate);
-  }, [loadInitialData]);
+    void fetchHistory(localDate, 7);
+  }, [loadInitialData, fetchHistory]);
+
+  async function handleSelectDate(nextDate: string) {
+    if (!nextDate || nextDate === selectedDate) return;
+    setSelectedDate(nextDate);
+    setIsLoadingLog(true);
+    setErrorMessage(null);
+
+    try {
+      const logRes = await fetch(
+        `/api/logs?date=${encodeURIComponent(nextDate)}`,
+        { cache: "no-store" }
+      );
+      if (!logRes.ok) {
+        throw new Error(t.errors.loadFailed);
+      }
+      const logData = (await logRes.json()) as DailyLogResponse;
+      setDailyLog(logData);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : t.errors.loadFailed
+      );
+    } finally {
+      setIsLoadingLog(false);
+    }
+  }
+
+  function handleChangeHistoryRange(days: HistoryRangeDays) {
+    setHistoryRange(days);
+    if (todayDate) {
+      void fetchHistory(todayDate, days);
+    }
+  }
 
   async function handleAddFood(foodId: number, servings: number) {
-    if (!todayDate) return;
+    if (!selectedDate) return;
     setAddingFoodId(foodId);
     setErrorMessage(null);
 
@@ -135,7 +208,7 @@ export default function HomePage() {
         body: JSON.stringify({
           foodId,
           servings,
-          loggedDate: todayDate,
+          loggedDate: selectedDate,
           mealCategory: selectedMeal,
         }),
       });
@@ -148,6 +221,9 @@ export default function HomePage() {
       }
 
       setDailyLog(payload);
+      if (todayDate) {
+        void fetchHistory(todayDate, historyRange);
+      }
       showStatus(t.toasts.addedSingle(t.meals[selectedMeal]));
     } catch (error) {
       setErrorMessage(
@@ -161,7 +237,7 @@ export default function HomePage() {
   async function handleSaveAiItems(
     items: CustomFoodLogItem[]
   ): Promise<boolean> {
-    if (!todayDate || items.length === 0) return false;
+    if (!selectedDate || items.length === 0) return false;
     setIsSavingAi(true);
     setErrorMessage(null);
 
@@ -171,7 +247,7 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items,
-          loggedDate: todayDate,
+          loggedDate: selectedDate,
           mealCategory: selectedMeal,
         }),
       });
@@ -184,6 +260,9 @@ export default function HomePage() {
       }
 
       setDailyLog(payload);
+      if (todayDate) {
+        void fetchHistory(todayDate, historyRange);
+      }
       const mealName = t.meals[selectedMeal];
       showStatus(
         items.length === 1
@@ -202,7 +281,7 @@ export default function HomePage() {
   }
 
   async function handleDeleteEntry(id: number) {
-    if (!todayDate) return;
+    if (!selectedDate) return;
     setDeletingId(id);
     setErrorMessage(null);
 
@@ -214,7 +293,7 @@ export default function HomePage() {
       }
 
       const logRes = await fetch(
-        `/api/logs?date=${encodeURIComponent(todayDate)}`,
+        `/api/logs?date=${encodeURIComponent(selectedDate)}`,
         { cache: "no-store" }
       );
       if (!logRes.ok) {
@@ -222,6 +301,9 @@ export default function HomePage() {
       }
       const updatedLog = (await logRes.json()) as DailyLogResponse;
       setDailyLog(updatedLog);
+      if (todayDate) {
+        void fetchHistory(todayDate, historyRange);
+      }
       showStatus(t.toasts.removedEntry);
     } catch (error) {
       setErrorMessage(
@@ -423,6 +505,12 @@ export default function HomePage() {
         ) : null}
 
         <div className="space-y-8">
+          <DateNavigator
+            selectedDate={selectedDate}
+            todayDate={todayDate}
+            onSelectDate={(date) => void handleSelectDate(date)}
+          />
+
           <CalorieSummary
             totals={dailyLog.totals}
             entryCount={dailyLog.entries.length}
@@ -455,9 +543,11 @@ export default function HomePage() {
             <div data-vt="food-log" className="min-w-0 lg:col-span-7">
               <DailyFoodLog
                 entries={dailyLog.entries}
-                isLoading={isLoading}
+                isLoading={isLoading || isLoadingLog}
                 deletingId={deletingId}
                 activeMealCategory={selectedMeal}
+                selectedDate={selectedDate}
+                todayDate={todayDate}
                 energyUnit={settings.energyUnit}
                 macroUnit={settings.macroUnit}
                 onSelectMealCategory={setSelectedMeal}
@@ -465,6 +555,17 @@ export default function HomePage() {
               />
             </div>
           </div>
+
+          <HistoryCharts
+            history={history}
+            rangeDays={historyRange}
+            isLoading={isLoadingHistory}
+            error={historyError}
+            selectedDate={selectedDate}
+            settings={settings}
+            onChangeRange={handleChangeHistoryRange}
+            onSelectDate={(date) => void handleSelectDate(date)}
+          />
         </div>
       </main>
 

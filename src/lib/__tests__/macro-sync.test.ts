@@ -56,3 +56,4 @@ describe("Macro-to-calorie sync helpers", () => {
     assert.ok(maxScaled.fatGoal >= 10 && maxScaled.fatGoal <= 400);
   });
 });
+

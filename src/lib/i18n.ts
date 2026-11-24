@@ -123,6 +123,25 @@ export function formatHeaderDate(dateStr: string, locale: Locale): string {
   });
 }
 
+export function formatShortDate(dateStr: string, locale: Locale): string {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const localDate = new Date(year, month - 1, day);
+  return localDate.toLocaleDateString(LOCALE_META[locale].dateLocale, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+export function formatWeekdayShort(dateStr: string, locale: Locale): string {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const localDate = new Date(year, month - 1, day);
+  return localDate.toLocaleDateString(LOCALE_META[locale].dateLocale, {
+    weekday: "short",
+  });
+}
+
 export interface LocalizedStrings {
   appName: string;
   units: {
@@ -275,6 +294,8 @@ export interface LocalizedStrings {
     loadingLabel: string;
     emptyTitle: string;
     emptySubtitle: string;
+    dateTitle: (dateLabel: string) => string;
+    emptyPastTitle: (dateLabel: string) => string;
     logMeal: (meal: string) => string;
     emptyMealRow: (meal: string) => string;
     selectedMeal: string;
@@ -283,6 +304,31 @@ export interface LocalizedStrings {
     remove: string;
     removing: string;
     removeAria: (foodName: string) => string;
+  };
+  dateNav: {
+    groupLabel: string;
+    previousDay: string;
+    nextDay: string;
+    today: string;
+    pickDate: string;
+  };
+  history: {
+    sectionLabel: string;
+    title: string;
+    subtitle: string;
+    range7d: string;
+    range30d: string;
+    modeCalories: string;
+    modeMacros: string;
+    goalLine: (goalEnergy: string) => string;
+    avgDaily: string;
+    daysLogged: (logged: number, total: number) => string;
+    daysLoggedLabel: string;
+    noData: string;
+    clickBarHint: string;
+    loading: string;
+    loadFailed: string;
+    entriesCount: (count: number) => string;
   };
   toasts: {
     addedSingle: (meal: string) => string;
@@ -478,6 +524,8 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       emptyTitle: "Start your food log for today",
       emptySubtitle:
         "Add foods from the common list, describe a meal in plain English, or upload a photo of your plate.",
+      dateTitle: (dateLabel) => `Meals for ${dateLabel}`,
+      emptyPastTitle: (dateLabel) => `No meals logged for ${dateLabel}`,
       logMeal: (meal) => `Log ${meal}`,
       emptyMealRow: (meal) => `Nothing logged for ${meal} yet`,
       selectedMeal: "Selected",
@@ -486,6 +534,31 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       remove: "Remove",
       removing: "Removing...",
       removeAria: (foodName) => `Remove ${foodName}`,
+    },
+    dateNav: {
+      groupLabel: "Date navigation",
+      previousDay: "Previous day",
+      nextDay: "Next day",
+      today: "Today",
+      pickDate: "Choose date",
+    },
+    history: {
+      sectionLabel: "Nutrition history trends",
+      title: "History & trends",
+      subtitle: "Track daily intake against your goal. Click any bar to inspect that day.",
+      range7d: "7 days",
+      range30d: "30 days",
+      modeCalories: "Calories",
+      modeMacros: "Macros",
+      goalLine: (goalEnergy) => `Goal ${goalEnergy}`,
+      avgDaily: "Daily avg (logged)",
+      daysLogged: (logged, total) => `${logged} / ${total}`,
+      daysLoggedLabel: "Days logged",
+      noData: "Log meals to see your 7-day and 30-day calorie & macro trends here.",
+      clickBarHint: "Select any day bar to view or edit its food log.",
+      loading: "Loading history...",
+      loadFailed: "Could not load food history.",
+      entriesCount: (count) => `${count} ${count === 1 ? "item" : "items"}`,
     },
     toasts: {
       addedSingle: (meal) => `Added to ${meal}`,
@@ -681,6 +754,8 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       emptyTitle: "Comienza tu registro de hoy",
       emptySubtitle:
         "Agrega alimentos comunes, describe una comida con texto o sube una foto de tu plato.",
+      dateTitle: (dateLabel) => `Comidas del ${dateLabel}`,
+      emptyPastTitle: (dateLabel) => `Sin comidas registradas el ${dateLabel}`,
       logMeal: (meal) => `Registrar ${meal}`,
       emptyMealRow: (meal) => `Sin alimentos en ${meal} todavía`,
       selectedMeal: "Seleccionado",
@@ -689,6 +764,31 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       remove: "Quitar",
       removing: "Quitando...",
       removeAria: (foodName) => `Quitar ${foodName}`,
+    },
+    dateNav: {
+      groupLabel: "Navegación por fecha",
+      previousDay: "Día anterior",
+      nextDay: "Día siguiente",
+      today: "Hoy",
+      pickDate: "Elegir fecha",
+    },
+    history: {
+      sectionLabel: "Historial y tendencias nutricionales",
+      title: "Historial y tendencias",
+      subtitle: "Compara tu consumo diario con tu meta. Toca una barra para ver ese día.",
+      range7d: "7 días",
+      range30d: "30 días",
+      modeCalories: "Calorías",
+      modeMacros: "Macros",
+      goalLine: (goalEnergy) => `Meta ${goalEnergy}`,
+      avgDaily: "Promedio diario",
+      daysLogged: (logged, total) => `${logged} / ${total}`,
+      daysLoggedLabel: "Días registrados",
+      noData: "Registra comidas para ver tus tendencias de 7 y 30 días aquí.",
+      clickBarHint: "Selecciona una barra para abrir el registro de ese día.",
+      loading: "Cargando historial...",
+      loadFailed: "No se pudo cargar el historial.",
+      entriesCount: (count) => `${count} ${count === 1 ? "alimento" : "alimentos"}`,
     },
     toasts: {
       addedSingle: (meal) => `Agregado a ${meal}`,
@@ -883,6 +983,8 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       emptyTitle: "ابدأ تسجيل وجباتك لليوم",
       emptySubtitle:
         "أضف من القائمة السريعة، أو صف وجبتك نصيًا، أو ارفع صورة لطبقك.",
+      dateTitle: (dateLabel) => `وجبات ${dateLabel}`,
+      emptyPastTitle: (dateLabel) => `لا توجد وجبات مسجلة ليوم ${dateLabel}`,
       logMeal: (meal) => `تسجيل ${meal}`,
       emptyMealRow: (meal) => `لا توجد أصناف مسجلة في ${meal} بعد`,
       selectedMeal: "محدد",
@@ -891,6 +993,31 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       remove: "حذف",
       removing: "جارٍ الحذف...",
       removeAria: (foodName) => `حذف ${foodName}`,
+    },
+    dateNav: {
+      groupLabel: "التنقل بين التواريخ",
+      previousDay: "اليوم السابق",
+      nextDay: "اليوم التالي",
+      today: "اليوم",
+      pickDate: "اختر تاريخًا",
+    },
+    history: {
+      sectionLabel: "سجل التغذية والاتجاهات",
+      title: "السجل والاتجاهات",
+      subtitle: "تابع استهلاكك اليومي مقارنة بهدفك. اضغط على أي عمود لعرض ذلك اليوم.",
+      range7d: "7 أيام",
+      range30d: "30 يومًا",
+      modeCalories: "السعرات",
+      modeMacros: "العناصر",
+      goalLine: (goalEnergy) => `الهدف ${goalEnergy}`,
+      avgDaily: "المتوسط اليومي",
+      daysLogged: (logged, total) => `${logged} / ${total}`,
+      daysLoggedLabel: "الأيام المسجلة",
+      noData: "سجّل وجباتك لعرض اتجاهات السعرات والعناصر لآخر 7 و 30 يومًا هنا.",
+      clickBarHint: "اضغط على أي يوم في الرسم البياني لعرض سجل وجباته.",
+      loading: "جارٍ تحميل السجل...",
+      loadFailed: "تعذر تحميل سجل الأيام.",
+      entriesCount: (count) => `${count} ${count === 1 ? "صنف" : "أصناف"}`,
     },
     toasts: {
       addedSingle: (meal) => `تمت الإضافة إلى ${meal}`,
