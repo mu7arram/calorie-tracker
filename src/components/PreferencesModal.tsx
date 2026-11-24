@@ -101,10 +101,13 @@ export function PreferencesModal({
   function handleAutoSplit() {
     const kcal = Number(caloriesInput);
     if (!Number.isFinite(kcal) || kcal < 500 || kcal > 10000) return;
-    // Balanced 30% Protein / 40% Carbs / 30% Fat split
-    setProteinInput(String(Math.round((kcal * 0.3) / 4)));
-    setCarbsInput(String(Math.round((kcal * 0.4) / 4)));
-    setFatInput(String(Math.round((kcal * 0.3) / 9)));
+    // Balanced 30% Protein / 40% Carbs / 30% Fat split, clamped to valid macro bounds
+    const protein = Math.min(800, Math.max(10, Math.round((kcal * 0.3) / 4)));
+    const carbs = Math.min(1500, Math.max(0, Math.round((kcal * 0.4) / 4)));
+    const fat = Math.min(400, Math.max(10, Math.round((kcal * 0.3) / 9)));
+    setProteinInput(String(protein));
+    setCarbsInput(String(carbs));
+    setFatInput(String(fat));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -126,7 +129,7 @@ export function PreferencesModal({
     if (
       !Number.isInteger(proteinGoal) ||
       proteinGoal < 10 ||
-      proteinGoal > 500
+      proteinGoal > 800
     ) {
       setValidationError(t.preferences.validation.protein);
       return;
@@ -134,12 +137,12 @@ export function PreferencesModal({
     if (
       !Number.isInteger(carbsGoal) ||
       carbsGoal < 0 ||
-      carbsGoal > 1000
+      carbsGoal > 1500
     ) {
       setValidationError(t.preferences.validation.carbs);
       return;
     }
-    if (!Number.isInteger(fatGoal) || fatGoal < 10 || fatGoal > 300) {
+    if (!Number.isInteger(fatGoal) || fatGoal < 10 || fatGoal > 400) {
       setValidationError(t.preferences.validation.fat);
       return;
     }
@@ -271,7 +274,7 @@ export function PreferencesModal({
                 id="pref-protein"
                 type="number"
                 min={10}
-                max={500}
+                max={800}
                 disabled={isSaving}
                 value={proteinInput}
                 onChange={(e) => setProteinInput(e.target.value)}
@@ -294,7 +297,7 @@ export function PreferencesModal({
                 id="pref-carbs"
                 type="number"
                 min={0}
-                max={1000}
+                max={1500}
                 disabled={isSaving}
                 value={carbsInput}
                 onChange={(e) => setCarbsInput(e.target.value)}
@@ -317,7 +320,7 @@ export function PreferencesModal({
                 id="pref-fat"
                 type="number"
                 min={10}
-                max={300}
+                max={400}
                 disabled={isSaving}
                 value={fatInput}
                 onChange={(e) => setFatInput(e.target.value)}
@@ -441,3 +444,4 @@ export function PreferencesModal({
     </dialog>
   );
 }
+

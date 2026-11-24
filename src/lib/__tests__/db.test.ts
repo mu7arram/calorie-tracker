@@ -240,5 +240,20 @@ describe("Calorie Tracker libSQL data layer", () => {
     assert.equal(partial.energyUnit, "kcal");
     assert.equal(partial.macroUnit, "oz");
     assert.equal(partial.proteinGoal, 180);
+
+    // 10,000 kcal 30/40/30 auto-split values (750g / 1000g / 333g) must persist cleanly
+    const highGoal = await updateUserSettings(
+      {
+        dailyCalorieGoal: 10000,
+        proteinGoal: 750,
+        carbsGoal: 1000,
+        fatGoal: 333,
+      },
+      db
+    );
+    assert.equal(highGoal.dailyCalorieGoal, 10000);
+    assert.equal(highGoal.proteinGoal, 750);
+    assert.equal(highGoal.carbsGoal, 1000);
+    assert.equal(highGoal.fatGoal, 333);
   });
 });

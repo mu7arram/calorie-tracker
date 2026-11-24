@@ -3,7 +3,7 @@
 ## What Changed
 
 - **Extended Preferences Data Layer (`src/types/food.ts`, `src/lib/db.ts`, `src/app/api/settings/route.ts`):**
-  - Expanded `UserSettings` to persist `dailyCalorieGoal` (`500–10,000` kcal), `proteinGoal` (`10–500` g), `carbsGoal` (`0–1,000` g), `fatGoal` (`10–300` g), `energyUnit` (`kcal` | `kj`), and `macroUnit` (`g` | `oz`) inside the `settings` table via atomic `client.batch(..., "write")` upserts.
+  - Expanded `UserSettings` to persist `dailyCalorieGoal` (`500–10,000` kcal), `proteinGoal` (`10–800` g), `carbsGoal` (`0–1,500` g), `fatGoal` (`10–400` g), `energyUnit` (`kcal` | `kj`), and `macroUnit` (`g` | `oz`) inside the `settings` table via atomic `client.batch(..., "write")` upserts.
   - Updated `GET /api/settings` to return the full `UserSettings` object and `PATCH /api/settings` to validate and apply partial updates while remaining backward-compatible with `{ dailyCalorieGoal }`.
 - **Native Preferences Modal (`src/components/PreferencesModal.tsx`, `src/app/globals.css`):**
   - Built a responsive modal dialog using the native `<dialog>` element opened via `showModal()` with `closedby="any"` (plus a feature-detected pointerdown/pointerup light-dismiss fallback for Safari), `aria-labelledby` → `<h1>`, `autofocus`, and pure-CSS background scroll containment (`dialog:modal` + `dialog::backdrop` `overscroll-behavior: contain` with `overflow: hidden` on `::backdrop`).
@@ -18,3 +18,4 @@
 - `npm test`: 16/16 unit tests passing (including `getUserSettings`/`updateUserSettings` partial updates and `kcal`/`kJ`/`g`/`oz` localization helpers).
 - `npx tsc --noEmit`: 0 TypeScript errors.
 - `npm run build`: Clean production Next.js build.
+

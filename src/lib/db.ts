@@ -321,19 +321,19 @@ export async function getUserSettings(db?: Client): Promise<UserSettings> {
     proteinGoal: parseBoundedInt(
       map.get(PROTEIN_GOAL_KEY),
       10,
-      500,
+      800,
       DEFAULT_PROTEIN_GOAL
     ),
     carbsGoal: parseBoundedInt(
       map.get(CARBS_GOAL_KEY),
       0,
-      1000,
+      1500,
       DEFAULT_CARBS_GOAL
     ),
     fatGoal: parseBoundedInt(
       map.get(FAT_GOAL_KEY),
       10,
-      300,
+      400,
       DEFAULT_FAT_GOAL
     ),
     energyUnit: isValidEnergyUnit(rawEnergyUnit)

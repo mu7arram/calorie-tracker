@@ -355,9 +355,9 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       cancel: "Cancel",
       validation: {
         calories: "Daily calorie goal must be a whole number between 500 and 10,000 kcal.",
-        protein: "Protein target must be a whole number between 10 and 500 g.",
-        carbs: "Carbs target must be a whole number between 0 and 1,000 g.",
-        fat: "Fat target must be a whole number between 10 and 300 g.",
+        protein: "Protein target must be a whole number between 10 and 800 g.",
+        carbs: "Carbs target must be a whole number between 0 and 1,500 g.",
+        fat: "Fat target must be a whole number between 10 and 400 g.",
       },
     },
     summary: {
@@ -549,9 +549,9 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       cancel: "Cancelar",
       validation: {
         calories: "La meta calórica debe ser un entero entre 500 y 10,000 kcal.",
-        protein: "La meta de proteína debe ser un entero entre 10 y 500 g.",
-        carbs: "La meta de carbohidratos debe ser un entero entre 0 y 1,000 g.",
-        fat: "La meta de grasas debe ser un entero entre 10 y 300 g.",
+        protein: "La meta de proteína debe ser un entero entre 10 y 800 g.",
+        carbs: "La meta de carbohidratos debe ser un entero entre 0 y 1,500 g.",
+        fat: "La meta de grasas debe ser un entero entre 10 y 400 g.",
       },
     },
     summary: {
@@ -745,9 +745,9 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       cancel: "إلغاء",
       validation: {
         calories: "يجب أن يكون هدف السعرات رقمًا صحيحًا بين 500 و 10,000 سعرة.",
-        protein: "يجب أن يكون هدف البروتين رقمًا صحيحًا بين 10 و 500 غ.",
-        carbs: "يجب أن يكون هدف الكربوهيدرات رقمًا صحيحًا بين 0 و 1,000 غ.",
-        fat: "يجب أن يكون هدف الدهون رقمًا صحيحًا بين 10 و 300 غ.",
+        protein: "يجب أن يكون هدف البروتين رقمًا صحيحًا بين 10 و 800 غ.",
+        carbs: "يجب أن يكون هدف الكربوهيدرات رقمًا صحيحًا بين 0 و 1,500 غ.",
+        fat: "يجب أن يكون هدف الدهون رقمًا صحيحًا بين 10 و 400 غ.",
       },
     },
     summary: {

@@ -63,9 +63,9 @@ export async function PATCH(request: NextRequest) {
   }
 
   if ("proteinGoal" in record) {
-    if (!isIntInRange(record.proteinGoal, 10, 500)) {
+    if (!isIntInRange(record.proteinGoal, 10, 800)) {
       return NextResponse.json(
-        { error: "'proteinGoal' must be a whole number between 10 and 500" },
+        { error: "'proteinGoal' must be a whole number between 10 and 800" },
         { status: 400 }
       );
     }
@@ -73,9 +73,9 @@ export async function PATCH(request: NextRequest) {
   }
 
   if ("carbsGoal" in record) {
-    if (!isIntInRange(record.carbsGoal, 0, 1000)) {
+    if (!isIntInRange(record.carbsGoal, 0, 1500)) {
       return NextResponse.json(
-        { error: "'carbsGoal' must be a whole number between 0 and 1000" },
+        { error: "'carbsGoal' must be a whole number between 0 and 1500" },
         { status: 400 }
       );
     }
@@ -83,9 +83,9 @@ export async function PATCH(request: NextRequest) {
   }
 
   if ("fatGoal" in record) {
-    if (!isIntInRange(record.fatGoal, 10, 300)) {
+    if (!isIntInRange(record.fatGoal, 10, 400)) {
       return NextResponse.json(
-        { error: "'fatGoal' must be a whole number between 10 and 300" },
+        { error: "'fatGoal' must be a whole number between 10 and 400" },
         { status: 400 }
       );
     }
