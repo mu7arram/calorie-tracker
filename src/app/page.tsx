@@ -128,6 +128,7 @@ export default function HomePage() {
 
   const loadInitialData = useCallback(
     async (localDate: string) => {
+      const reqId = ++logRequestSeqRef.current;
       setIsLoading(true);
       setErrorMessage(null);
 
@@ -149,12 +150,16 @@ export default function HomePage() {
         const settingsData = (await settingsRes.json()) as UserSettings;
 
         setFoods(foodsData.foods);
-        setDailyLog(logData);
         setSettings({ ...DEFAULT_SETTINGS, ...settingsData });
+        if (reqId === logRequestSeqRef.current) {
+          setDailyLog(logData);
+        }
       } catch (error) {
-        setErrorMessage(
-          error instanceof Error ? error.message : t.errors.loadFailed
-        );
+        if (reqId === logRequestSeqRef.current) {
+          setErrorMessage(
+            error instanceof Error ? error.message : t.errors.loadFailed
+          );
+        }
       } finally {
         setIsLoading(false);
       }
