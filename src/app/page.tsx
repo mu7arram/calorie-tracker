@@ -216,6 +216,8 @@ export default function HomePage() {
 
   async function handleAddFood(foodId: number, servings: number) {
     if (!selectedDate) return;
+    const targetDate = selectedDate;
+    const reqId = ++logRequestSeqRef.current;
     setAddingFoodId(foodId);
     setErrorMessage(null);
 
@@ -226,7 +228,7 @@ export default function HomePage() {
         body: JSON.stringify({
           foodId,
           servings,
-          loggedDate: selectedDate,
+          loggedDate: targetDate,
           mealCategory: selectedMeal,
         }),
       });
@@ -238,7 +240,9 @@ export default function HomePage() {
         throw new Error(payload.error ?? t.errors.addFailed);
       }
 
-      setDailyLog(payload);
+      if (reqId === logRequestSeqRef.current) {
+        setDailyLog(payload);
+      }
       if (todayDate) {
         void fetchHistory(todayDate, historyRange);
       }
@@ -256,6 +260,8 @@ export default function HomePage() {
     items: CustomFoodLogItem[]
   ): Promise<boolean> {
     if (!selectedDate || items.length === 0) return false;
+    const targetDate = selectedDate;
+    const reqId = ++logRequestSeqRef.current;
     setIsSavingAi(true);
     setErrorMessage(null);
 
@@ -265,7 +271,7 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items,
-          loggedDate: selectedDate,
+          loggedDate: targetDate,
           mealCategory: selectedMeal,
         }),
       });
@@ -277,7 +283,9 @@ export default function HomePage() {
         throw new Error(payload.error ?? t.errors.saveAiFailed);
       }
 
-      setDailyLog(payload);
+      if (reqId === logRequestSeqRef.current) {
+        setDailyLog(payload);
+      }
       if (todayDate) {
         void fetchHistory(todayDate, historyRange);
       }
@@ -300,6 +308,8 @@ export default function HomePage() {
 
   async function handleDeleteEntry(id: number) {
     if (!selectedDate) return;
+    const targetDate = selectedDate;
+    const reqId = ++logRequestSeqRef.current;
     setDeletingId(id);
     setErrorMessage(null);
 
@@ -310,15 +320,19 @@ export default function HomePage() {
         throw new Error(payload.error ?? t.errors.deleteFailed);
       }
 
-      const logRes = await fetch(
-        `/api/logs?date=${encodeURIComponent(selectedDate)}`,
-        { cache: "no-store" }
-      );
-      if (!logRes.ok) {
-        throw new Error(t.errors.refreshAfterDeleteFailed);
+      if (reqId === logRequestSeqRef.current) {
+        const logRes = await fetch(
+          `/api/logs?date=${encodeURIComponent(targetDate)}`,
+          { cache: "no-store" }
+        );
+        if (!logRes.ok) {
+          throw new Error(t.errors.refreshAfterDeleteFailed);
+        }
+        const updatedLog = (await logRes.json()) as DailyLogResponse;
+        if (reqId === logRequestSeqRef.current) {
+          setDailyLog(updatedLog);
+        }
       }
-      const updatedLog = (await logRes.json()) as DailyLogResponse;
-      setDailyLog(updatedLog);
       if (todayDate) {
         void fetchHistory(todayDate, historyRange);
       }
