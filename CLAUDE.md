@@ -1,6 +1,6 @@
 # Calorie Tracker
 
-A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie and macronutrient tracker with Light, Dark, and System themes (radial View Transition reveal), Directional Silk Curtain + Layout Morph language transitions, no login required, Turso/libSQL persistence (with local SQLite file fallback), meal-category grouping, editable daily calorie goals, and three ways to add food (catalog quick add, Gemini AI text lookup, and Gemini AI meal photo analysis).
+A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie and macronutrient tracker with Light, Dark, and System themes (radial View Transition reveal), Directional Silk Curtain + Layout Morph language transitions, no login required, Turso/libSQL persistence (with local SQLite file fallback), meal-category grouping, editable calorie & macro preferences, 7D/30D food history charts, and four ways to add food (catalog quick add, Gemini AI text lookup, Gemini AI meal photo analysis, and UPC/EAN barcode scanning).
 
 ## Running the App
 
@@ -36,7 +36,8 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
 │   ├── 2026-11-21-multilanguage-rtl-transitions.md  # EN/ES/AR RTL & silk curtain log
 │   ├── 2026-11-24-vercel-turso-migration.md      # Async libSQL/Turso & Vercel migration log
 │   ├── 2026-11-24-user-preferences.md            # Custom macro targets & units modal log
-│   └── 2026-11-24-food-history-charts.md         # Multi-day navigation & 7D/30D charts log
+│   ├── 2026-11-24-food-history-charts.md         # Multi-day navigation & 7D/30D charts log
+│   └── 2026-11-25-barcode-scanning.md            # Camera & Open Food Facts barcode log
 ├── data/                                         # Auto-created SQLite DB directory (gitignored)
 └── src/
     ├── types/food.ts                             # Shared TypeScript types & MEAL_CATEGORIES
@@ -45,7 +46,8 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
     │   ├── i18n.ts                               # EN/ES/AR UI strings, catalog & date helpers
     │   ├── db.ts                                 # SQLite singleton, migrations, queries & settings
     │   ├── gemini.ts                             # Gemini 3.5 Flash-Lite client & locale prompts
-    │   └── __tests__/                            # Unit tests (db + gemini + i18n)
+    │   ├── barcode.ts                            # Open Food Facts client & nutrition normalizer
+    │   └── __tests__/                            # Unit tests (db + gemini + i18n + sync + barcode)
     ├── components/
     │   ├── LocaleProvider.tsx                    # Locale context, RTL/LTR & View Transitions
     │   ├── LanguageToggle.tsx                    # Compact Globe switcher (EN / ES / عربي)
@@ -54,10 +56,11 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
     │   ├── DateNavigator.tsx                     # Multi-day date switcher & picker
     │   ├── HistoryCharts.tsx                     # 7D/30D calorie & stacked macro charts
     │   ├── CalorieSummary.tsx                    # Calorie & macro target progress bars
-    │   ├── AddFoodPanel.tsx                      # Meal selector + 3-tab input switcher
+    │   ├── AddFoodPanel.tsx                      # Meal selector + 4-tab input switcher
     │   ├── FoodSearchCatalog.tsx                 # Multilingual search & quick-add list
     │   ├── AiTextLookup.tsx                      # Plain-text AI meal description input
     │   ├── AiPhotoLookup.tsx                     # Meal photo upload, preview & AI lookup
+    │   ├── BarcodeLookup.tsx                     # Camera + manual UPC/EAN barcode scanner
     │   ├── AiNutritionReview.tsx                 # Shared AI item checklist & confirmation UI
     │   └── DailyFoodLog.tsx                      # Meal-grouped card-style food entries
     └── app/
@@ -73,7 +76,8 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
             │   └── [id]/route.ts                 # DELETE /api/logs/[id]
             └── nutrition/
                 ├── text/route.ts                 # POST /api/nutrition/text (locale-aware)
-                └── image/route.ts                # POST /api/nutrition/image (locale-aware)
+                ├── image/route.ts                # POST /api/nutrition/image (locale-aware)
+                └── barcode/[code]/route.ts       # GET /api/nutrition/barcode/[code]
 ```
 
 ## Security & Conventions
@@ -84,4 +88,4 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
 
 ## Next Steps
 
-1. **Barcode Scanning:** Add camera-based UPC/EAN barcode scanning (backed by Open Food Facts lookup) as a fourth logging method for packaged foods.
+All four initial roadmap milestones (Vercel + Turso deployment, User Preferences, 7D/30D Food History Charts, and Barcode Scanning) are complete. Future enhancements can build on this foundation (e.g., user accounts/sync, custom recipe builder, or wearable integrations).

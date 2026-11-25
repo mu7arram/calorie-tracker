@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { AiPhotoLookup } from "@/components/AiPhotoLookup";
 import { AiTextLookup } from "@/components/AiTextLookup";
+import { BarcodeLookup } from "@/components/BarcodeLookup";
 import { FoodSearchCatalog } from "@/components/FoodSearchCatalog";
 import { useLocale } from "@/components/LocaleProvider";
 import {
@@ -14,7 +15,7 @@ import {
   type MealCategory,
 } from "@/types/food";
 
-type InputMode = "quick" | "text" | "photo";
+type InputMode = "quick" | "text" | "photo" | "barcode";
 
 interface AddFoodPanelProps {
   foods: FoodItem[];
@@ -49,6 +50,7 @@ export function AddFoodPanel({
     { id: "quick", label: t.addPanel.tabs.quick },
     { id: "text", label: t.addPanel.tabs.text },
     { id: "photo", label: t.addPanel.tabs.photo },
+    { id: "barcode", label: t.addPanel.tabs.barcode },
   ];
 
   return (
@@ -103,7 +105,7 @@ export function AddFoodPanel({
       <div
         role="tablist"
         aria-label={t.addPanel.tabsLabel}
-        className="mb-4 grid grid-cols-3 gap-1 rounded-xl border border-border-subtle bg-canvas p-1"
+        className="mb-4 grid grid-cols-2 gap-1 rounded-xl border border-border-subtle bg-canvas p-1 sm:grid-cols-4"
       >
         {tabs.map((tab) => {
           const isSelected = activeTab === tab.id;
@@ -168,6 +170,22 @@ export function AddFoodPanel({
         hidden={activeTab !== "photo"}
       >
         <AiPhotoLookup
+          isSaving={isSavingAi}
+          selectedMeal={selectedMeal}
+          energyUnit={energyUnit}
+          macroUnit={macroUnit}
+          onSaveAiItems={onSaveAiItems}
+        />
+      </div>
+
+      <div
+        id={`${baseId}-panel-barcode`}
+        role="tabpanel"
+        aria-labelledby={`${baseId}-tab-barcode`}
+        hidden={activeTab !== "barcode"}
+      >
+        <BarcodeLookup
+          isActive={activeTab === "barcode"}
           isSaving={isSavingAi}
           selectedMeal={selectedMeal}
           energyUnit={energyUnit}

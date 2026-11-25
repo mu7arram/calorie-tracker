@@ -229,6 +229,7 @@ export interface LocalizedStrings {
       quick: string;
       text: string;
       photo: string;
+      barcode: string;
     };
   };
   catalog: {
@@ -270,6 +271,23 @@ export interface LocalizedStrings {
     tooLargeError: string;
     missingFileError: string;
     noFoodsError: string;
+  };
+  barcode: {
+    intro: string;
+    scanButton: string;
+    stopCamera: string;
+    scanningHint: string;
+    manualLabel: string;
+    manualPlaceholder: string;
+    lookupButton: string;
+    lookingUp: string;
+    spinner: string;
+    detectedCode: (code: string) => string;
+    cameraUnavailable: string;
+    cameraDenied: string;
+    invalidBarcode: string;
+    notFound: string;
+    upstreamError: string;
   };
   aiReview: {
     eyebrow: string;
@@ -448,6 +466,7 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
         quick: "Quick add",
         text: "Describe meal",
         photo: "Upload photo",
+        barcode: "Barcode",
       },
     },
     catalog: {
@@ -496,6 +515,28 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       missingFileError: "Select or take a photo of your meal first.",
       noFoodsError:
         "No foods could be identified in that photo. Try a clearer angle or brighter lighting.",
+    },
+    barcode: {
+      intro:
+        "Scan a packaged food barcode with your camera or enter the UPC/EAN number to look up nutrition via Open Food Facts.",
+      scanButton: "Scan with camera",
+      stopCamera: "Stop camera",
+      scanningHint: "Point your camera at the product barcode...",
+      manualLabel: "Or enter barcode manually",
+      manualPlaceholder: "e.g., 5449000000996",
+      lookupButton: "Look up barcode",
+      lookingUp: "Looking up...",
+      spinner: "Searching Open Food Facts nutrition database...",
+      detectedCode: (code) => `Detected barcode: ${code}`,
+      cameraUnavailable:
+        "Camera scanning is unavailable on this browser or requires HTTPS. Enter the barcode manually below.",
+      cameraDenied:
+        "Camera access was denied. Allow camera permission in your browser or enter the barcode manually.",
+      invalidBarcode: "Enter a valid 8 to 14 digit UPC/EAN barcode.",
+      notFound:
+        "No nutrition record found for this barcode. Try another code or describe the meal instead.",
+      upstreamError:
+        "Open Food Facts is temporarily unavailable. Try again in a moment.",
     },
     aiReview: {
       eyebrow: "Review estimated items",
@@ -678,6 +719,7 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
         quick: "Lista rápida",
         text: "Describir",
         photo: "Subir foto",
+        barcode: "Código",
       },
     },
     catalog: {
@@ -726,6 +768,28 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       missingFileError: "Selecciona o toma una foto primero.",
       noFoodsError:
         "No se identificaron alimentos en la foto. Intenta con mejor luz o ángulo.",
+    },
+    barcode: {
+      intro:
+        "Escanea el código de barras de un producto envasado con tu cámara o ingrésalo manualmente desde Open Food Facts.",
+      scanButton: "Escanear con cámara",
+      stopCamera: "Detener cámara",
+      scanningHint: "Apunta la cámara hacia el código de barras del producto...",
+      manualLabel: "O ingresa el código manualmente",
+      manualPlaceholder: "ej., 5449000000996",
+      lookupButton: "Buscar código",
+      lookingUp: "Buscando...",
+      spinner: "Consultando Open Food Facts...",
+      detectedCode: (code) => `Código detectado: ${code}`,
+      cameraUnavailable:
+        "La cámara no está disponible en este navegador o requiere HTTPS. Ingresa el código abajo.",
+      cameraDenied:
+        "Se denegó el permiso de cámara. Habilítalo en el navegador o ingresa el código manualmente.",
+      invalidBarcode: "Ingresa un código UPC/EAN válido de 8 a 14 dígitos.",
+      notFound:
+        "No se encontraron datos nutricionales para este código. Prueba con otro o describe el alimento.",
+      upstreamError:
+        "Open Food Facts no está disponible temporalmente. Intenta de nuevo en unos segundos.",
     },
     aiReview: {
       eyebrow: "Revisar alimentos estimados",
@@ -908,6 +972,7 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
         quick: "إضافة سريعة",
         text: "وصف الوجبة",
         photo: "رفع صورة",
+        barcode: "باركود",
       },
     },
     catalog: {
@@ -956,6 +1021,28 @@ export const TRANSLATIONS: Record<Locale, LocalizedStrings> = {
       missingFileError: "اختر أو التقط صورة لوجبتك أولًا.",
       noFoodsError:
         "لم يتم التعرف على أطعمة في الصورة. جرّب زاوية أوضح وإضاءة أفضل.",
+    },
+    barcode: {
+      intro:
+        "امسح باركود المنتج المعلّب بالكاميرا أو أدخل الرقم يدويًا لجلب البيانات الغذائية من Open Food Facts.",
+      scanButton: "مسح بالكاميرا",
+      stopCamera: "إيقاف الكاميرا",
+      scanningHint: "وجّه الكاميرا نحو رمز الباركود على العبوة...",
+      manualLabel: "أو أدخل رقم الباركود يدويًا",
+      manualPlaceholder: "مثال: 5449000000996",
+      lookupButton: "بحث بالباركود",
+      lookingUp: "جارٍ البحث...",
+      spinner: "جارٍ البحث في قاعدة Open Food Facts...",
+      detectedCode: (code) => `تم اكتشاف الباركود: ${code}`,
+      cameraUnavailable:
+        "ماسح الكاميرا غير متاح في هذا المتصفح أو يتطلب اتصال HTTPS. أدخل الرقم يدويًا أدناه.",
+      cameraDenied:
+        "تم رفض إذن الكاميرا. اسمح بالوصول من إعدادات المتصفح أو أدخل الباركود يدويًا.",
+      invalidBarcode: "أدخل رقم باركود صحيحًا مكوّنًا من 8 إلى 14 رقمًا.",
+      notFound:
+        "لم يتم العثور على بيانات غذائية لهذا الباركود. جرّب رمزًا آخر أو صف الوجبة نصيًا.",
+      upstreamError:
+        "خدمة Open Food Facts غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.",
     },
     aiReview: {
       eyebrow: "مراجعة الأصناف المقدّرة",
