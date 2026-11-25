@@ -309,7 +309,7 @@ describe("Calorie Tracker libSQL data layer", () => {
 
     // Strict date validation rejects impossible calendar dates and reversed ranges
     assert.throws(() => enumerateDateRange("2026-02-30", "2026-03-02"), RangeError);
-    assert.deepEqual(enumerateDateRange("2026-11-22", "2026-11-20"), []);
+    assert.throws(() => enumerateDateRange("2026-11-22", "2026-11-20"), RangeError);
     await assert.rejects(
       () => getDailyHistory("2026-11-22", "2026-11-20", db),
       RangeError

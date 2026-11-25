@@ -569,15 +569,19 @@ export async function deleteFoodLog(
   return result.rowsAffected > 0;
 }
 
-export function enumerateDateRange(fromDate: string, toDate: string): string[] {
+function assertValidDateRange(fromDate: string, toDate: string): void {
   if (!isValidDateString(fromDate) || !isValidDateString(toDate)) {
     throw new RangeError(
       "Both 'fromDate' and 'toDate' must be valid YYYY-MM-DD calendar dates"
     );
   }
   if (fromDate > toDate) {
-    return [];
+    throw new RangeError("'fromDate' must be on or before 'toDate'");
   }
+}
+
+export function enumerateDateRange(fromDate: string, toDate: string): string[] {
+  assertValidDateRange(fromDate, toDate);
 
   const [fy, fm, fd] = fromDate.split("-").map(Number);
   const [ty, tm, td] = toDate.split("-").map(Number);
@@ -601,14 +605,7 @@ export async function getDailyHistory(
   toDate: string,
   db?: Client
 ): Promise<DailyHistoryResponse> {
-  if (!isValidDateString(fromDate) || !isValidDateString(toDate)) {
-    throw new RangeError(
-      "Both 'fromDate' and 'toDate' must be valid YYYY-MM-DD calendar dates"
-    );
-  }
-  if (fromDate > toDate) {
-    throw new RangeError("'fromDate' must be on or before 'toDate'");
-  }
+  assertValidDateRange(fromDate, toDate);
 
   const client = db ?? (await getDb());
   const result = await client.execute({
