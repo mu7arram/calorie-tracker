@@ -62,6 +62,31 @@ export interface DailyLogResponse {
   entries: FoodLogEntry[];
 }
 
+export interface DailyHistoryPoint {
+  date: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  entryCount: number;
+}
+
+export interface DailyHistorySummary {
+  daysLogged: number;
+  averageCalories: number;
+  averageProtein: number;
+  averageCarbs: number;
+  averageFat: number;
+  totalEntries: number;
+}
+
+export interface DailyHistoryResponse {
+  from: string;
+  to: string;
+  days: DailyHistoryPoint[];
+  summary: DailyHistorySummary;
+}
+
 export interface CreateLogInput {
   foodId: number;
   servings: number;

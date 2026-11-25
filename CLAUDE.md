@@ -35,7 +35,8 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
 │   ├── 2026-11-21-theme-switcher-view-transition.md # Light/Dark/System radial reveal log
 │   ├── 2026-11-21-multilanguage-rtl-transitions.md  # EN/ES/AR RTL & silk curtain log
 │   ├── 2026-11-24-vercel-turso-migration.md      # Async libSQL/Turso & Vercel migration log
-│   └── 2026-11-24-user-preferences.md            # Custom macro targets & units modal log
+│   ├── 2026-11-24-user-preferences.md            # Custom macro targets & units modal log
+│   └── 2026-11-24-food-history-charts.md         # Multi-day navigation & 7D/30D charts log
 ├── data/                                         # Auto-created SQLite DB directory (gitignored)
 └── src/
     ├── types/food.ts                             # Shared TypeScript types & MEAL_CATEGORIES
@@ -50,6 +51,8 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
     │   ├── LanguageToggle.tsx                    # Compact Globe switcher (EN / ES / عربي)
     │   ├── ThemeToggle.tsx                       # Light / Dark / System switcher + radial reveal
     │   ├── PreferencesModal.tsx                  # Native <dialog> for macro goals & units
+    │   ├── DateNavigator.tsx                     # Multi-day date switcher & picker
+    │   ├── HistoryCharts.tsx                     # 7D/30D calorie & stacked macro charts
     │   ├── CalorieSummary.tsx                    # Calorie & macro target progress bars
     │   ├── AddFoodPanel.tsx                      # Meal selector + 3-tab input switcher
     │   ├── FoodSearchCatalog.tsx                 # Multilingual search & quick-add list
@@ -66,6 +69,7 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
             ├── settings/route.ts                 # GET & PATCH /api/settings (daily calorie goal)
             ├── logs/
             │   ├── route.ts                      # GET & POST /api/logs (catalog or AI batch)
+            │   ├── history/route.ts              # GET /api/logs/history (7D/30D aggregation)
             │   └── [id]/route.ts                 # DELETE /api/logs/[id]
             └── nutrition/
                 ├── text/route.ts                 # POST /api/nutrition/text (locale-aware)
@@ -80,5 +84,4 @@ A multi-language (English, Spanish, and RTL Arabic) single-page daily calorie an
 
 ## Next Steps
 
-1. **Food History Charts:** Add multi-day date navigation and 7-day / 30-day calorie and macro trend charts.
-2. **Barcode Scanning:** Add camera-based UPC/EAN barcode scanning (backed by Open Food Facts lookup) as a fourth logging method for packaged foods.
+1. **Barcode Scanning:** Add camera-based UPC/EAN barcode scanning (backed by Open Food Facts lookup) as a fourth logging method for packaged foods.

@@ -7,6 +7,8 @@ import {
   MACRO_UNITS,
   MEAL_CATEGORIES,
   type CustomFoodLogItem,
+  type DailyHistoryPoint,
+  type DailyHistoryResponse,
   type DailyLogResponse,
   type EnergyUnit,
   type FoodItem,
@@ -565,4 +567,117 @@ export async function deleteFoodLog(
     args: [id],
   });
   return result.rowsAffected > 0;
+}
+
+function assertValidDateRange(fromDate: string, toDate: string): void {
+  if (!isValidDateString(fromDate) || !isValidDateString(toDate)) {
+    throw new RangeError(
+      "Both 'fromDate' and 'toDate' must be valid YYYY-MM-DD calendar dates"
+    );
+  }
+  if (fromDate > toDate) {
+    throw new RangeError("'fromDate' must be on or before 'toDate'");
+  }
+}
+
+export function enumerateDateRange(fromDate: string, toDate: string): string[] {
+  assertValidDateRange(fromDate, toDate);
+
+  const [fy, fm, fd] = fromDate.split("-").map(Number);
+  const [ty, tm, td] = toDate.split("-").map(Number);
+  const startMs = Date.UTC(fy, fm - 1, fd);
+  const endMs = Date.UTC(ty, tm - 1, td);
+
+  const dates: string[] = [];
+  const dayMs = 24 * 60 * 60 * 1000;
+  for (let ms = startMs; ms <= endMs; ms += dayMs) {
+    const d = new Date(ms);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    dates.push(`${y}-${m}-${day}`);
+  }
+  return dates;
+}
+
+export async function getDailyHistory(
+  fromDate: string,
+  toDate: string,
+  db?: Client
+): Promise<DailyHistoryResponse> {
+  assertValidDateRange(fromDate, toDate);
+
+  const client = db ?? (await getDb());
+  const result = await client.execute({
+    sql: `SELECT
+            logged_date AS loggedDate,
+            ROUND(COALESCE(SUM(calories), 0), 1) AS calories,
+            ROUND(COALESCE(SUM(protein), 0), 1) AS protein,
+            ROUND(COALESCE(SUM(carbs), 0), 1) AS carbs,
+            ROUND(COALESCE(SUM(fat), 0), 1) AS fat,
+            COUNT(*) AS entryCount
+          FROM food_logs
+          WHERE logged_date >= ? AND logged_date <= ?
+          GROUP BY logged_date
+          ORDER BY logged_date ASC`,
+    args: [fromDate, toDate],
+  });
+
+  const byDate = new Map<string, DailyHistoryPoint>();
+  for (const row of result.rows) {
+    const date = String(row.loggedDate);
+    byDate.set(date, {
+      date,
+      calories: Number(row.calories ?? 0),
+      protein: Number(row.protein ?? 0),
+      carbs: Number(row.carbs ?? 0),
+      fat: Number(row.fat ?? 0),
+      entryCount: Number(row.entryCount ?? 0),
+    });
+  }
+
+  const allDates = enumerateDateRange(fromDate, toDate);
+  const days: DailyHistoryPoint[] = allDates.map(
+    (date) =>
+      byDate.get(date) ?? {
+        date,
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        entryCount: 0,
+      }
+  );
+
+  let daysLogged = 0;
+  let totalCalories = 0;
+  let totalProtein = 0;
+  let totalCarbs = 0;
+  let totalFat = 0;
+  let totalEntries = 0;
+
+  for (const day of days) {
+    if (day.entryCount > 0) {
+      daysLogged += 1;
+      totalCalories += day.calories;
+      totalProtein += day.protein;
+      totalCarbs += day.carbs;
+      totalFat += day.fat;
+      totalEntries += day.entryCount;
+    }
+  }
+
+  return {
+    from: fromDate,
+    to: toDate,
+    days,
+    summary: {
+      daysLogged,
+      averageCalories: daysLogged > 0 ? round1(totalCalories / daysLogged) : 0,
+      averageProtein: daysLogged > 0 ? round1(totalProtein / daysLogged) : 0,
+      averageCarbs: daysLogged > 0 ? round1(totalCarbs / daysLogged) : 0,
+      averageFat: daysLogged > 0 ? round1(totalFat / daysLogged) : 0,
+      totalEntries,
+    },
+  };
 }
