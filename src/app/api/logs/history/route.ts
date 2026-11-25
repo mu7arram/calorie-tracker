@@ -45,6 +45,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (fromParam > toParam) {
+      return NextResponse.json(
+        { error: "'from' must be on or before 'to'" },
+        { status: 400 }
+      );
+    }
+
     const span = diffDaysInclusive(fromParam, toParam);
     if (span < 1 || span > MAX_RANGE_DAYS) {
       return NextResponse.json(
@@ -92,3 +99,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+

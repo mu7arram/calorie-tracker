@@ -49,22 +49,29 @@ export function HistoryCharts({
   const activePoint =
     hoveredDay ?? days.find((d) => d.date === selectedDate) ?? null;
 
-  // Chart scale calculations
-  const maxCalorieValue = Math.max(
-    dailyCalorieGoal * 1.15,
-    ...days.map((d) => d.calories),
-    500
-  );
+  // Derive chart scales dynamically from visible data; only apply a fallback floor when empty
+  const peakCalories = Math.max(0, ...days.map((d) => d.calories));
+  const maxCalorieValue =
+    peakCalories > 0
+      ? Math.max(peakCalories * 1.12, dailyCalorieGoal * 1.1)
+      : dailyCalorieGoal > 0
+        ? dailyCalorieGoal * 1.1
+        : 500;
   const goalLineBottomPct = Math.min(
     96,
     Math.max(4, (dailyCalorieGoal / maxCalorieValue) * 100)
   );
 
-  const maxMacroKcal = Math.max(
-    ...days.map((d) => d.protein * 4 + d.carbs * 4 + d.fat * 9),
-    dailyCalorieGoal,
-    500
+  const peakMacroKcal = Math.max(
+    0,
+    ...days.map((d) => d.protein * 4 + d.carbs * 4 + d.fat * 9)
   );
+  const maxMacroKcal =
+    peakMacroKcal > 0
+      ? peakMacroKcal * 1.12
+      : dailyCalorieGoal > 0
+        ? dailyCalorieGoal
+        : 500;
 
   return (
     <section
@@ -424,3 +431,4 @@ export function HistoryCharts({
     </section>
   );
 }
+

@@ -8,6 +8,7 @@ import {
   DEFAULT_DAILY_CALORIE_GOAL,
   DEFAULT_USER_SETTINGS,
   deleteFoodLog,
+  enumerateDateRange,
   getDailyCalorieGoal,
   getDailyHistory,
   getDailyLog,
@@ -305,5 +306,13 @@ describe("Calorie Tracker libSQL data layer", () => {
     assert.equal(history.summary.averageCalories, 700);
     assert.equal(history.summary.averageProtein, 50);
     assert.equal(history.summary.totalEntries, 2);
+
+    // Strict date validation rejects impossible calendar dates and reversed ranges
+    assert.throws(() => enumerateDateRange("2026-02-30", "2026-03-02"), RangeError);
+    assert.deepEqual(enumerateDateRange("2026-11-22", "2026-11-20"), []);
+    await assert.rejects(
+      () => getDailyHistory("2026-11-22", "2026-11-20", db),
+      RangeError
+    );
   });
 });

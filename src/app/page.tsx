@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AddFoodPanel } from "@/components/AddFoodPanel";
 import { CalorieSummary } from "@/components/CalorieSummary";
 import { DailyFoodLog } from "@/components/DailyFoodLog";
@@ -81,6 +81,9 @@ export default function HomePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  const logRequestSeqRef = useRef(0);
+  const historyRequestSeqRef = useRef(0);
+
   const showStatus = useCallback((message: string) => {
     setStatusMessage(message);
   }, []);
@@ -94,6 +97,7 @@ export default function HomePage() {
   const fetchHistory = useCallback(
     async (endDate: string, days: HistoryRangeDays) => {
       if (!endDate) return;
+      const reqId = ++historyRequestSeqRef.current;
       setIsLoadingHistory(true);
       setHistoryError(null);
 
@@ -106,13 +110,17 @@ export default function HomePage() {
           throw new Error(t.history.loadFailed);
         }
         const data = (await res.json()) as DailyHistoryResponse;
+        if (reqId !== historyRequestSeqRef.current) return;
         setHistory(data);
       } catch (error) {
+        if (reqId !== historyRequestSeqRef.current) return;
         setHistoryError(
           error instanceof Error ? error.message : t.history.loadFailed
         );
       } finally {
-        setIsLoadingHistory(false);
+        if (reqId === historyRequestSeqRef.current) {
+          setIsLoadingHistory(false);
+        }
       }
     },
     [t.history.loadFailed]
@@ -166,6 +174,7 @@ export default function HomePage() {
 
   async function handleSelectDate(nextDate: string) {
     if (!nextDate || nextDate === selectedDate) return;
+    const reqId = ++logRequestSeqRef.current;
     setSelectedDate(nextDate);
     setIsLoadingLog(true);
     setErrorMessage(null);
@@ -179,13 +188,17 @@ export default function HomePage() {
         throw new Error(t.errors.loadFailed);
       }
       const logData = (await logRes.json()) as DailyLogResponse;
+      if (reqId !== logRequestSeqRef.current) return;
       setDailyLog(logData);
     } catch (error) {
+      if (reqId !== logRequestSeqRef.current) return;
       setErrorMessage(
         error instanceof Error ? error.message : t.errors.loadFailed
       );
     } finally {
-      setIsLoadingLog(false);
+      if (reqId === logRequestSeqRef.current) {
+        setIsLoadingLog(false);
+      }
     }
   }
 

@@ -20,3 +20,4 @@
 - `npm test`: 20/20 unit tests passing.
 - `npx tsc --noEmit`: 0 TypeScript errors.
 - `npm run build`: Clean production Next.js build.
+
