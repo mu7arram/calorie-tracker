@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   BarcodeUpstreamError,
+  checkBarcodeRateLimit,
   lookupBarcodeNutrition,
   normalizeBarcode,
 } from "@/lib/barcode";
@@ -8,16 +9,41 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function getClientKey(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+  return "unknown";
+}
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ code: string }> }
 ) {
+  const rate = checkBarcodeRateLimit(getClientKey(request));
+  if (!rate.allowed) {
+    return NextResponse.json(
+      {
+        error:
+          "Too many barcode lookup requests. Please wait a moment and try again.",
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rate.retryAfterSeconds) },
+      }
+    );
+  }
+
   const { code } = await context.params;
   const normalized = normalizeBarcode(code ?? "");
 
   if (!normalized) {
     return NextResponse.json(
-      { error: "Barcode must contain 8 to 14 digits (UPC/EAN/GTIN)" },
+      { error: "Barcode must be a valid 8 to 14 digit UPC/EAN/GTIN code" },
       { status: 400 }
     );
   }
@@ -31,7 +57,11 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: {
+        "Cache-Control": "private, max-age=300",
+      },
+    });
   } catch (error) {
     if (error instanceof BarcodeUpstreamError) {
       console.error("Barcode upstream error:", error.message);

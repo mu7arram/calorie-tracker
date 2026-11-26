@@ -1,15 +1,120 @@
 import type { NutritionEstimateItem, NutritionLookupResponse } from "@/types/food";
 
-const BARCODE_DIGITS_PATTERN = /^\d{8,14}$/;
+const GTIN_PATTERN = /^(?:\d{8}|\d{12}|\d{13}|\d{14})$/;
 const KJ_PER_KCAL = 4.184;
 const OPEN_FOOD_FACTS_BASE =
   "https://world.openfoodfacts.org/api/v2/product";
+
+const FOUND_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const NOT_FOUND_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+const MAX_CACHE_ENTRIES = 500;
+
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 30;
+const MAX_RATE_LIMIT_KEYS = 1000;
+
+interface RateLimitBucket {
+  count: number;
+  resetAt: number;
+}
+
+const rateLimitStore = new Map<string, RateLimitBucket>();
+
+export function resetBarcodeRateLimit(): void {
+  rateLimitStore.clear();
+}
+
+/**
+ * Checks and increments the per-client sliding-window quota for barcode lookups.
+ */
+export function checkBarcodeRateLimit(
+  clientKey: string,
+  now: number = Date.now()
+): { allowed: true } | { allowed: false; retryAfterSeconds: number } {
+  const existing = rateLimitStore.get(clientKey);
+  if (!existing || now >= existing.resetAt) {
+    if (rateLimitStore.size >= MAX_RATE_LIMIT_KEYS) {
+      for (const [key, bucket] of rateLimitStore.entries()) {
+        if (now >= bucket.resetAt) {
+          rateLimitStore.delete(key);
+        }
+      }
+      if (rateLimitStore.size >= MAX_RATE_LIMIT_KEYS) {
+        const oldestKey = rateLimitStore.keys().next().value;
+        if (oldestKey !== undefined) {
+          rateLimitStore.delete(oldestKey);
+        }
+      }
+    }
+
+    rateLimitStore.set(clientKey, {
+      count: 1,
+      resetAt: now + RATE_LIMIT_WINDOW_MS,
+    });
+    return { allowed: true };
+  }
+
+  if (existing.count >= RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil((existing.resetAt - now) / 1000)
+    );
+    return { allowed: false, retryAfterSeconds };
+  }
+
+  existing.count += 1;
+  return { allowed: true };
+}
+
+const VOLUME_UNIT_PATTERN =
+  /(?:^|[\s(\d])(?:ml|cl|dl|fl\.?\s*oz|millilit(?:er|re)s?|lit(?:er|re)s?)(?=$|[\s),.;/])|(?:^|[\s(])\d+(?:[.,]\d+)?\s*l(?=$|[\s),.;/])/i;
+const MASS_UNIT_PATTERN =
+  /(?:^|[\s(\d])(?:mg|kg|oz|lb|lbs|grams?|kilograms?|milligrams?)(?=$|[\s),.;/])|(?:^|[\s(])\d+(?:[.,]\d+)?\s*g(?=$|[\s),.;/])/i;
+
+interface CacheEntry {
+  value: NutritionLookupResponse | null;
+  expiresAt: number;
+}
+
+const barcodeCache = new Map<string, CacheEntry>();
 
 export class BarcodeUpstreamError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "BarcodeUpstreamError";
   }
+}
+
+export function clearBarcodeCache(): void {
+  barcodeCache.clear();
+}
+
+function getCachedLookup(
+  code: string
+): { hit: true; value: NutritionLookupResponse | null } | { hit: false } {
+  const entry = barcodeCache.get(code);
+  if (!entry) {
+    return { hit: false };
+  }
+  if (Date.now() > entry.expiresAt) {
+    barcodeCache.delete(code);
+    return { hit: false };
+  }
+  return { hit: true, value: entry.value };
+}
+
+function setCachedLookup(
+  code: string,
+  value: NutritionLookupResponse | null
+): void {
+  if (barcodeCache.size >= MAX_CACHE_ENTRIES) {
+    const oldestKey = barcodeCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      barcodeCache.delete(oldestKey);
+    }
+  }
+  const ttl = value ? FOUND_CACHE_TTL_MS : NOT_FOUND_CACHE_TTL_MS;
+  barcodeCache.set(code, { value, expiresAt: Date.now() + ttl });
 }
 
 function round1(value: number): number {
@@ -30,12 +135,28 @@ function toNonNegativeNumber(value: unknown): number | null {
 }
 
 /**
- * Strips whitespace and hyphens, returning a clean 8–14 digit UPC/EAN/GTIN
- * barcode or null if invalid.
+ * Validates standard GS1 Mod-10 check digit for EAN-8, UPC-A, EAN-13, and GTIN-14.
+ */
+export function hasValidGtinCheckDigit(digits: string): boolean {
+  if (!GTIN_PATTERN.test(digits)) {
+    return false;
+  }
+  let sum = 0;
+  for (let i = digits.length - 2; i >= 0; i -= 1) {
+    const weight = (digits.length - 2 - i) % 2 === 0 ? 3 : 1;
+    sum += Number(digits[i]) * weight;
+  }
+  const expected = (10 - (sum % 10)) % 10;
+  return expected === Number(digits[digits.length - 1]);
+}
+
+/**
+ * Strips whitespace and hyphens, returning a clean GS1-valid barcode
+ * (EAN-8, UPC-A, EAN-13, or GTIN-14) or null if invalid.
  */
 export function normalizeBarcode(raw: string): string | null {
   const cleaned = raw.replace(/[\s-]+/g, "").trim();
-  if (!BARCODE_DIGITS_PATTERN.test(cleaned)) {
+  if (!GTIN_PATTERN.test(cleaned) || !hasValidGtinCheckDigit(cleaned)) {
     return null;
   }
   return cleaned;
@@ -60,6 +181,7 @@ interface OpenFoodFactsProduct {
   generic_name?: unknown;
   brands?: unknown;
   serving_size?: unknown;
+  quantity?: unknown;
   nutriments?: OpenFoodFactsNutriments;
 }
 
@@ -77,13 +199,40 @@ function extractKcal(kcalRaw: unknown, kjRaw: unknown): number | null {
 }
 
 /**
+ * Determines whether per-100 fallback values represent liquid ("100 ml")
+ * or solid ("100 g") nutrition using explicit volume/mass unit cues.
+ */
+export function inferPer100Unit(
+  servingSize: string | null,
+  quantity?: unknown
+): "100 ml" | "100 g" {
+  const candidates = [
+    servingSize,
+    typeof quantity === "string" ? quantity.trim() : null,
+  ].filter((v): v is string => Boolean(v && v.length > 0));
+
+  for (const text of candidates) {
+    const hasVolume = VOLUME_UNIT_PATTERN.test(text);
+    const hasMass = MASS_UNIT_PATTERN.test(text);
+    if (hasVolume && !hasMass) {
+      return "100 ml";
+    }
+    if (hasMass) {
+      return "100 g";
+    }
+  }
+
+  return "100 g";
+}
+
+/**
  * Normalizes an Open Food Facts API product payload into NutritionLookupResponse.
  */
 export function parseOpenFoodFactsProduct(
   code: string,
   payload: unknown
 ): NutritionLookupResponse | null {
-  if (!payload || typeof payload !== "object") {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return null;
   }
 
@@ -91,13 +240,17 @@ export function parseOpenFoodFactsProduct(
   if (
     record.status !== 1 ||
     !record.product ||
-    typeof record.product !== "object"
+    typeof record.product !== "object" ||
+    Array.isArray(record.product)
   ) {
     return null;
   }
 
   const product = record.product;
-  const nutriments = product.nutriments ?? {};
+  const nutriments =
+    product.nutriments && typeof product.nutriments === "object"
+      ? product.nutriments
+      : {};
 
   const servingKcal = extractKcal(
     nutriments["energy-kcal_serving"],
@@ -151,9 +304,7 @@ export function parseOpenFoodFactsProduct(
 
   const servingSize = useServing
     ? rawServingSize
-    : rawServingSize && /\bml\b/i.test(rawServingSize)
-      ? "100 ml"
-      : "100 g";
+    : inferPer100Unit(rawServingSize, product.quantity);
 
   const item: NutritionEstimateItem = {
     name: displayName.slice(0, 200),
@@ -178,7 +329,8 @@ export function parseOpenFoodFactsProduct(
 }
 
 /**
- * Fetches nutrition details for a normalized barcode from Open Food Facts.
+ * Fetches nutrition details for a normalized barcode from Open Food Facts,
+ * backed by a short-lived in-memory TTL cache to reduce upstream quota load.
  */
 export async function lookupBarcodeNutrition(
   code: string
@@ -188,8 +340,13 @@ export async function lookupBarcodeNutrition(
     return null;
   }
 
+  const cached = getCachedLookup(normalized);
+  if (cached.hit) {
+    return cached.value;
+  }
+
   const fields =
-    "product_name,product_name_en,generic_name,brands,serving_size,nutriments";
+    "product_name,product_name_en,generic_name,brands,serving_size,quantity,nutriments";
   const url = `${OPEN_FOOD_FACTS_BASE}/${encodeURIComponent(normalized)}.json?fields=${fields}`;
 
   let response: Response;
@@ -212,6 +369,7 @@ export async function lookupBarcodeNutrition(
   }
 
   if (response.status === 404) {
+    setCachedLookup(normalized, null);
     return null;
   }
 
@@ -230,5 +388,7 @@ export async function lookupBarcodeNutrition(
     );
   }
 
-  return parseOpenFoodFactsProduct(normalized, data);
+  const parsed = parseOpenFoodFactsProduct(normalized, data);
+  setCachedLookup(normalized, parsed);
+  return parsed;
 }

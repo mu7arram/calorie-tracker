@@ -6,6 +6,7 @@ import {
   LoadingSpinner,
 } from "@/components/AiNutritionReview";
 import { useLocale } from "@/components/LocaleProvider";
+import { normalizeBarcode } from "@/lib/barcode";
 import type {
   CustomFoodLogItem,
   EnergyUnit,
@@ -35,9 +36,6 @@ interface BarcodeLookupProps {
   onSaveAiItems: (items: CustomFoodLogItem[]) => Promise<boolean>;
 }
 
-const BARCODE_FORMAT_CLEAN = /[\s-]+/g;
-const BARCODE_PATTERN = /^\d{8,14}$/;
-
 export function BarcodeLookup({
   isActive,
   isSaving,
@@ -53,6 +51,8 @@ export function BarcodeLookup({
   const pollTimerRef = useRef<number | null>(null);
   const zxingControlsRef = useRef<{ stop: () => void } | null>(null);
   const isMountedRef = useRef(true);
+  const isActiveRef = useRef(isActive);
+  const lastScannedCodeRef = useRef<string | null>(null);
   const lookupSeqRef = useRef(0);
 
   const [barcodeInput, setBarcodeInput] = useState("");
@@ -61,6 +61,10 @@ export function BarcodeLookup({
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<NutritionLookupResponse | null>(null);
+
+  useEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
 
   const stopCamera = useCallback(() => {
     if (pollTimerRef.current !== null) {
@@ -105,8 +109,8 @@ export function BarcodeLookup({
 
   const lookupBarcode = useCallback(
     async (rawCode: string) => {
-      const cleaned = rawCode.replace(BARCODE_FORMAT_CLEAN, "").trim();
-      if (!BARCODE_PATTERN.test(cleaned)) {
+      const cleaned = normalizeBarcode(rawCode);
+      if (!cleaned) {
         setErrorMessage(t.barcode.invalidBarcode);
         return;
       }
@@ -170,6 +174,7 @@ export function BarcodeLookup({
     }
 
     stopCamera();
+    lastScannedCodeRef.current = null;
     setErrorMessage(null);
     setDetectedCode(null);
     setResult(null);
@@ -181,7 +186,7 @@ export function BarcodeLookup({
         audio: false,
       });
 
-      if (!isMountedRef.current) {
+      if (!isMountedRef.current || !isActiveRef.current) {
         for (const track of stream.getTracks()) track.stop();
         return;
       }
@@ -200,9 +205,19 @@ export function BarcodeLookup({
         BarcodeDetector?: NativeBarcodeDetectorConstructor;
       };
 
-      const handleDetected = (raw: string) => {
-        const cleaned = raw.replace(BARCODE_FORMAT_CLEAN, "").trim();
-        if (!BARCODE_PATTERN.test(cleaned)) return false;
+      const handleDetected = (raw: string): boolean => {
+        if (
+          !isMountedRef.current ||
+          !isActiveRef.current ||
+          !streamRef.current
+        ) {
+          return false;
+        }
+        const cleaned = normalizeBarcode(raw);
+        if (!cleaned || cleaned === lastScannedCodeRef.current) {
+          return false;
+        }
+        lastScannedCodeRef.current = cleaned;
         stopCamera();
         setDetectedCode(cleaned);
         setBarcodeInput(cleaned);
@@ -216,10 +231,24 @@ export function BarcodeLookup({
         });
 
         const scanFrame = async () => {
-          if (!streamRef.current || !videoRef.current) return;
+          if (
+            !streamRef.current ||
+            !videoRef.current ||
+            !isMountedRef.current ||
+            !isActiveRef.current
+          ) {
+            return;
+          }
           try {
             if (videoRef.current.readyState >= 2) {
               const detected = await detector.detect(videoRef.current);
+              if (
+                !streamRef.current ||
+                !isMountedRef.current ||
+                !isActiveRef.current
+              ) {
+                return;
+              }
               for (const item of detected) {
                 if (item.rawValue && handleDetected(item.rawValue)) {
                   return;
@@ -229,7 +258,11 @@ export function BarcodeLookup({
           } catch {
             // Continue scanning frames until user stops or code is detected
           }
-          if (streamRef.current) {
+          if (
+            streamRef.current &&
+            isMountedRef.current &&
+            isActiveRef.current
+          ) {
             pollTimerRef.current = window.setTimeout(
               () => void scanFrame(),
               250
@@ -243,18 +276,35 @@ export function BarcodeLookup({
 
       // Cross-browser fallback for Safari / Firefox using @zxing/browser
       const { BrowserMultiFormatReader } = await import("@zxing/browser");
-      if (!streamRef.current || !videoRef.current) return;
+      if (
+        !streamRef.current ||
+        !videoRef.current ||
+        !isMountedRef.current ||
+        !isActiveRef.current
+      ) {
+        return;
+      }
 
       const reader = new BrowserMultiFormatReader();
       const controls = await reader.decodeFromStream(
         streamRef.current,
         videoRef.current,
         (decoded) => {
-          if (decoded) {
+          // Ignore late detections after stream teardown or tab deactivation
+          if (
+            decoded &&
+            streamRef.current &&
+            isMountedRef.current &&
+            isActiveRef.current
+          ) {
             handleDetected(decoded.getText());
           }
         }
       );
+      if (!isMountedRef.current || !isActiveRef.current) {
+        controls.stop();
+        return;
+      }
       zxingControlsRef.current = controls;
     } catch (error) {
       stopCamera();
@@ -273,6 +323,7 @@ export function BarcodeLookup({
   async function handleConfirm(items: CustomFoodLogItem[]) {
     const saved = await onSaveAiItems(items);
     if (saved) {
+      lastScannedCodeRef.current = null;
       setResult(null);
       setBarcodeInput("");
       setDetectedCode(null);
@@ -353,6 +404,7 @@ export function BarcodeLookup({
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          lastScannedCodeRef.current = null;
           void lookupBarcode(barcodeInput);
         }}
         className="space-y-2"
@@ -410,7 +462,10 @@ export function BarcodeLookup({
           macroUnit={macroUnit}
           isSaving={isSaving}
           onConfirm={handleConfirm}
-          onDiscard={() => setResult(null)}
+          onDiscard={() => {
+            lastScannedCodeRef.current = null;
+            setResult(null);
+          }}
         />
       ) : null}
     </div>
