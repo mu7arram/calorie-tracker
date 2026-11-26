@@ -212,6 +212,42 @@ describe("Barcode validation & Open Food Facts parser", () => {
     assert.equal(fetchCalls, 2);
   });
 
+  it("deduplicates concurrent in-flight lookups for the same uncached barcode", async () => {
+    let fetchCalls = 0;
+    globalThis.fetch = (async () => {
+      fetchCalls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return new Response(
+        JSON.stringify({
+          status: 1,
+          product: {
+            product_name: "Concurrent Drink",
+            serving_size: "250 mL",
+            nutriments: {
+              "energy-kcal_serving": 90,
+              proteins_serving: 0,
+              carbohydrates_serving: 22,
+              fat_serving: 0,
+            },
+          },
+        }),
+        { status: 200 }
+      );
+    }) as typeof fetch;
+
+    const [a, b, c] = await Promise.all([
+      lookupBarcodeNutrition("5449000000996"),
+      lookupBarcodeNutrition("5449000000996"),
+      lookupBarcodeNutrition("5449-0000-0099-6"),
+    ]);
+
+    assert.equal(fetchCalls, 1);
+    assert.ok(a && b && c);
+    assert.equal(a.items[0].name, "Concurrent Drink");
+    assert.equal(b.items[0].name, "Concurrent Drink");
+    assert.equal(c.items[0].name, "Concurrent Drink");
+  });
+
   it("handles 400, 200, 404, 502, 500, and 429 responses on the API route", async () => {
     const makeRequest = (ip = "198.51.100.1") =>
       new NextRequest("http://localhost:3005/api/nutrition/barcode/5449000000996", {
@@ -280,16 +316,35 @@ describe("Barcode validation & Open Food Facts parser", () => {
     });
     assert.equal(res500.status, 500);
 
-    // 429 after exceeding per-IP rate limit (30 requests per minute)
+    // 429 after exceeding per-IP rate limit (30 requests per minute),
+    // verifying x-vercel-forwarded-for takes precedence over spoofable x-forwarded-for
     for (let i = 0; i < 30; i += 1) {
-      const ok = await GET(makeRequest("198.51.100.99"), {
-        params: Promise.resolve({ code: "5449000000997" }),
-      });
+      const ok = await GET(
+        new NextRequest(
+          "http://localhost:3005/api/nutrition/barcode/5449000000997",
+          {
+            headers: {
+              "x-vercel-forwarded-for": "203.0.113.50",
+              "x-forwarded-for": `198.51.100.${i + 1}`,
+            },
+          }
+        ),
+        { params: Promise.resolve({ code: "5449000000997" }) }
+      );
       assert.equal(ok.status, 400);
     }
-    const res429 = await GET(makeRequest("198.51.100.99"), {
-      params: Promise.resolve({ code: "5449000000997" }),
-    });
+    const res429 = await GET(
+      new NextRequest(
+        "http://localhost:3005/api/nutrition/barcode/5449000000997",
+        {
+          headers: {
+            "x-vercel-forwarded-for": "203.0.113.50",
+            "x-forwarded-for": "198.51.100.250",
+          },
+        }
+      ),
+      { params: Promise.resolve({ code: "5449000000997" }) }
+    );
     assert.equal(res429.status, 429);
     assert.ok(Number(res429.headers.get("retry-after")) >= 1);
   });

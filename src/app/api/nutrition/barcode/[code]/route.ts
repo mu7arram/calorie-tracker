@@ -10,13 +10,20 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function getClientKey(request: NextRequest): string {
+  // Prefer Vercel's edge-populated IP header (cannot be spoofed by callers on Vercel);
+  // fall back to x-real-ip / x-forwarded-for for local dev or other reverse proxies.
+  const vercelForwarded = request.headers.get("x-vercel-forwarded-for");
+  if (vercelForwarded) {
+    const first = vercelForwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) {
     const first = forwarded.split(",")[0]?.trim();
     if (first) return first;
   }
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
   return "unknown";
 }
 

@@ -18,7 +18,27 @@ interface RateLimitBucket {
   resetAt: number;
 }
 
+// Best-effort module-local stores per serverless instance (acceptable for
+// low-volume/hobby deployments; move to Upstash Redis / Vercel Firewall if
+// strict multi-instance coordination is needed).
 const rateLimitStore = new Map<string, RateLimitBucket>();
+const barcodeCache = new Map<string, CacheEntry>();
+const inFlightLookups = new Map<
+  string,
+  Promise<NutritionLookupResponse | null>
+>();
+
+export class BarcodeUpstreamError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BarcodeUpstreamError";
+  }
+}
+
+export function clearBarcodeCache(): void {
+  barcodeCache.clear();
+  inFlightLookups.clear();
+}
 
 export function resetBarcodeRateLimit(): void {
   rateLimitStore.clear();
@@ -74,19 +94,6 @@ const MASS_UNIT_PATTERN =
 interface CacheEntry {
   value: NutritionLookupResponse | null;
   expiresAt: number;
-}
-
-const barcodeCache = new Map<string, CacheEntry>();
-
-export class BarcodeUpstreamError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "BarcodeUpstreamError";
-  }
-}
-
-export function clearBarcodeCache(): void {
-  barcodeCache.clear();
 }
 
 function getCachedLookup(
@@ -345,50 +352,66 @@ export async function lookupBarcodeNutrition(
     return cached.value;
   }
 
-  const fields =
-    "product_name,product_name_en,generic_name,brands,serving_size,quantity,nutriments";
-  const url = `${OPEN_FOOD_FACTS_BASE}/${encodeURIComponent(normalized)}.json?fields=${fields}`;
+  const existingInFlight = inFlightLookups.get(normalized);
+  if (existingInFlight) {
+    return existingInFlight;
+  }
 
-  let response: Response;
+  const requestPromise = (async (): Promise<NutritionLookupResponse | null> => {
+    const fields =
+      "product_name,product_name_en,generic_name,brands,serving_size,quantity,nutriments";
+    const url = `${OPEN_FOOD_FACTS_BASE}/${encodeURIComponent(normalized)}.json?fields=${fields}`;
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          "User-Agent":
+            "CalorieTracker/1.0 (https://github.com/mu7arram/calorie-tracker)",
+          Accept: "application/json",
+        },
+        cache: "no-store",
+        signal: AbortSignal.timeout(8000),
+      });
+    } catch (error) {
+      throw new BarcodeUpstreamError(
+        error instanceof Error
+          ? `Open Food Facts lookup failed: ${error.message}`
+          : "Open Food Facts lookup failed"
+      );
+    }
+
+    if (response.status === 404) {
+      setCachedLookup(normalized, null);
+      return null;
+    }
+
+    if (!response.ok) {
+      throw new BarcodeUpstreamError(
+        `Open Food Facts returned HTTP ${response.status}`
+      );
+    }
+
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch {
+      throw new BarcodeUpstreamError(
+        "Invalid JSON response from Open Food Facts"
+      );
+    }
+
+    const parsed = parseOpenFoodFactsProduct(normalized, data);
+    setCachedLookup(normalized, parsed);
+    return parsed;
+  })();
+
+  inFlightLookups.set(normalized, requestPromise);
   try {
-    response = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "CalorieTracker/1.0 (https://github.com/mu7arram/calorie-tracker)",
-        Accept: "application/json",
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(8000),
-    });
-  } catch (error) {
-    throw new BarcodeUpstreamError(
-      error instanceof Error
-        ? `Open Food Facts lookup failed: ${error.message}`
-        : "Open Food Facts lookup failed"
-    );
+    return await requestPromise;
+  } finally {
+    if (inFlightLookups.get(normalized) === requestPromise) {
+      inFlightLookups.delete(normalized);
+    }
   }
-
-  if (response.status === 404) {
-    setCachedLookup(normalized, null);
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new BarcodeUpstreamError(
-      `Open Food Facts returned HTTP ${response.status}`
-    );
-  }
-
-  let data: unknown;
-  try {
-    data = await response.json();
-  } catch {
-    throw new BarcodeUpstreamError(
-      "Invalid JSON response from Open Food Facts"
-    );
-  }
-
-  const parsed = parseOpenFoodFactsProduct(normalized, data);
-  setCachedLookup(normalized, parsed);
-  return parsed;
 }
